@@ -49,7 +49,7 @@ namespace MyGame.UI
         public Color cooldownColor = Color.gray;
         public Color unboundColor = Color.gray;
         public Color readyCooldownFillColor = new Color(0.5f, 1f, 0.5f, 0.3f); // 浅绿色CD圈（非CD期间）
-        public Color pressedTintColor = new Color(0.6f, 0.6f, 0.6f, 1f);        // 按下时的tinted颜色（更明显）
+        public Color pressedTintColor = new Color(0.4f, 0.4f, 0.4f, 1f);        // 按下时的tinted颜色（更暗更明显）
         public Color alwaysReadyFillColor = new Color(0f, 1f, 0f, 0.8f);         // CD=0技能的绿色CD条（可在Inspector中调整）
 
         [Header("行为配置")]
@@ -105,7 +105,10 @@ namespace MyGame.UI
 
         private void Update()
         {
-            if (listenKeyboard && keyBind != KeyCode.None)
+            // 只要有绑定的按键且不是"00"技能，就监听键盘
+            bool shouldListenKeyboard = (keyBind != KeyCode.None && skillId != "00");
+            
+            if (shouldListenKeyboard)
             {
                 // 检查按键状态来应用tinted效果
                 bool currentPressed = Input.GetKey(keyBind);
@@ -113,6 +116,7 @@ namespace MyGame.UI
                 {
                     isPressed = currentPressed;
                     ApplyPressedEffect(isPressed);
+                    Debug.Log($"[NineButtons] {gameObject.name} 键盘按键 {keyBind} 状态变化: {(isPressed ? "按下" : "释放")}");
                 }
 
                 // 对于移动技能，使用按住逻辑；对于其他技能，使用按下逻辑
@@ -126,6 +130,11 @@ namespace MyGame.UI
                     if (Input.GetKeyDown(keyBind))
                         Press();
                 }
+            }
+            else if (listenKeyboard && (keyBind == KeyCode.None || skillId == "00"))
+            {
+                // 调试信息：为什么不监听键盘
+                Debug.LogWarning($"[NineButtons] {gameObject.name} 不监听键盘: keyBind={keyBind}, skillId={skillId}, listenKeyboard={listenKeyboard}");
             }
 
             if (isOnCooldown)
@@ -288,6 +297,8 @@ namespace MyGame.UI
             
             if (canvasGroup) canvasGroup.alpha = 1f;
             UpdateLabels(); // 确保标签正确更新
+            
+            Debug.Log($"[NineButtons] {gameObject.name} ApplyBoundState: skillId={skillId}, keyBind={keyBind}, listenKeyboard={listenKeyboard}");
         }
 
         /// <summary>
@@ -300,8 +311,8 @@ namespace MyGame.UI
             if (pressed)
             {
                 // 按下时应用tinted效果 - 使用更明显的颜色混合
-                Color currentColor = backgroundImage.color;
-                backgroundImage.color = Color.Lerp(currentColor, pressedTintColor, 0.7f);
+                backgroundImage.color = pressedTintColor;
+                Debug.Log($"[NineButtons] {gameObject.name} 键盘按下tinted效果已应用");
             }
             else
             {
@@ -312,6 +323,7 @@ namespace MyGame.UI
                     backgroundImage.color = cooldownColor;
                 else
                     backgroundImage.color = readyColor;
+                Debug.Log($"[NineButtons] {gameObject.name} 键盘释放，恢复原色");
             }
         }
 
@@ -325,14 +337,16 @@ namespace MyGame.UI
             // 保存当前颜色
             Color originalColor = backgroundImage.color;
             
-            // 应用tinted效果
-            backgroundImage.color = Color.Lerp(originalColor, pressedTintColor, 0.7f);
+            // 应用tinted效果 - 直接使用tinted颜色，更明显
+            backgroundImage.color = pressedTintColor;
+            Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击tinted效果已应用");
             
             // 等待短暂时间
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(0.15f);
             
             // 恢复原始颜色
             backgroundImage.color = originalColor;
+            Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击效果结束，恢复原色");
         }
 
         /// <summary>
@@ -496,5 +510,43 @@ namespace MyGame.UI
                 Debug.Log($"[NineButtons] {gameObject.name} 更新技能编号显示: skillId={skillId}, 显示文本='{skillIdText.text}'");
             }
         }
+
+        #region 测试方法
+
+        [ContextMenu("测试鼠标点击效果")]
+        private void TestMouseClickEffect()
+        {
+            Debug.Log($"[NineButtons] 测试鼠标点击效果: {gameObject.name}");
+            StartCoroutine(MouseClickTintEffect());
+        }
+
+        [ContextMenu("测试键盘按下效果")]
+        private void TestKeyboardPressEffect()
+        {
+            Debug.Log($"[NineButtons] 测试键盘按下效果: {gameObject.name}");
+            ApplyPressedEffect(true);
+            // 2秒后恢复
+            StartCoroutine(TestKeyboardReleaseEffect());
+        }
+
+        [ContextMenu("显示按钮状态")]
+        private void ShowButtonStatus()
+        {
+            Debug.Log($"[NineButtons] 按钮状态 {gameObject.name}:");
+            Debug.Log($"  - skillId: {skillId}");
+            Debug.Log($"  - keyBind: {keyBind}");
+            Debug.Log($"  - listenKeyboard: {listenKeyboard}");
+            Debug.Log($"  - isPressed: {isPressed}");
+            Debug.Log($"  - backgroundImage: {(backgroundImage != null ? backgroundImage.color.ToString() : "null")}");
+            Debug.Log($"  - shouldListenKeyboard: {(keyBind != KeyCode.None && skillId != "00")}");
+        }
+
+        private System.Collections.IEnumerator TestKeyboardReleaseEffect()
+        {
+            yield return new WaitForSeconds(2f);
+            ApplyPressedEffect(false);
+        }
+
+        #endregion
     }
 }
