@@ -1,4 +1,3 @@
-using IPGModAPI;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -108,3 +107,5 @@ public class VirtualJoystick : MonoBehaviour, IDragHandler, IPointerUpHandler, I
         handle.anchoredPosition = Vector2.zero;
     }
 }
+
+public delegate void dPGM();
