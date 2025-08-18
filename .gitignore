@@ -9,6 +9,7 @@
 UserSettings/
 .vs/
 Temp/
+Log/
 # Asset Store tools
 Assets/AssetStoreTools*
 
