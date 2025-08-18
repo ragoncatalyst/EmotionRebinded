@@ -41,16 +41,15 @@ namespace MyGame.UI
         public TMP_Text slotLabelText; // 按键所绑定的行列编号（A1、A2这样的）
         public TMP_Text keyBindText;   // 按键所绑定的键盘按键
         public TMP_Text skillIdText;   // 显示当前绑定的技能编号
-        public Image backgroundImage;  // 底色 Image
         public CanvasGroup canvasGroup;
 
         [Header("颜色配置")]
-        public Color readyColor = Color.green;
-        public Color cooldownColor = Color.gray;
-        public Color unboundColor = Color.gray;
-        public Color readyCooldownFillColor = new Color(0.5f, 1f, 0.5f, 0.3f); // 浅绿色CD圈（非CD期间）
-        public Color pressedTintColor = new Color(0.4f, 0.4f, 0.4f, 1f);        // 按下时的tinted颜色（更暗更明显）
-        public Color alwaysReadyFillColor = new Color(0f, 1f, 0f, 0.8f);         // CD=0技能的绿色CD条（可在Inspector中调整）
+        [Header("CD圈颜色")]
+        public Color readyCooldownFillColor = new Color(0.5f, 1f, 0.5f, 0.3f); // 有冷却技能的CD圈颜色（非CD期间）
+        public Color alwaysReadyFillColor = new Color(0f, 1f, 0f, 0.8f);        // 无冷却技能的CD圈颜色（始终满绿）
+        
+        [Header("图标按下效果")]
+        public Color iconPressedColor = new Color(0.5f, 0.5f, 0.5f, 1f);        // 按下时图标变灰的颜色
 
         [Header("行为配置")]
         public bool listenKeyboard = false;
@@ -60,7 +59,7 @@ namespace MyGame.UI
         private float cooldownTimer = 0f;
         private float cooldownDuration = 0f;
         private bool isPressed = false;
-        private Color originalBackgroundColor;
+        private Color originalIconColor;          // 保存图标的原始颜色
 
         public System.Action<NineButtons> OnSkillChanged;
 
@@ -92,12 +91,12 @@ namespace MyGame.UI
                 cooldownFill.fillOrigin = (int)Image.Origin360.Top;
                 cooldownFill.fillClockwise = true;
                 cooldownFill.fillAmount = 0f;
-                cooldownFill.color = unboundColor;
+                cooldownFill.color = Color.gray;
             }
 
-            // 保存原始背景颜色
-            if (backgroundImage != null)
-                originalBackgroundColor = backgroundImage.color;
+            // 保存图标的原始颜色
+            if (iconImage != null)
+                originalIconColor = iconImage.color;
 
             if (skillId == "00") ApplyUnboundState();
             else ApplyBoundState();
@@ -115,12 +114,16 @@ namespace MyGame.UI
                 if (currentPressed != isPressed)
                 {
                     isPressed = currentPressed;
-                    ApplyPressedEffect(isPressed);
                     Debug.Log($"[NineButtons] {gameObject.name} 键盘按键 {keyBind} 状态变化: {(isPressed ? "按下" : "释放")}");
+                    Debug.Log($"[NineButtons] 即将调用 ApplyPressedEffect({isPressed})");
+                    ApplyPressedEffect(isPressed);
+                    Debug.Log($"[NineButtons] ApplyPressedEffect({isPressed}) 调用完成");
                 }
 
                 // 对于移动技能，使用按住逻辑；对于其他技能，使用按下逻辑
-                if (IsMovementSkill(skillId))
+                bool isMovement = IsMovementSkill(skillId);
+                
+                if (isMovement)
                 {
                     if (Input.GetKey(keyBind))
                         PressHold();
@@ -128,7 +131,10 @@ namespace MyGame.UI
                 else
                 {
                     if (Input.GetKeyDown(keyBind))
+                    {
+                        Debug.Log($"[NineButtons] {gameObject.name} 非移动技能按下: {keyBind}");
                         Press();
+                    }
                 }
             }
             else if (listenKeyboard && (keyBind == KeyCode.None || skillId == "00"))
@@ -162,7 +168,7 @@ namespace MyGame.UI
                             cooldownFill.color = readyCooldownFillColor; // 恢复浅绿色CD圈
                         }
                     }
-                    if (backgroundImage) backgroundImage.color = readyColor;
+
                 }
             }
         }
@@ -241,7 +247,7 @@ namespace MyGame.UI
                 cooldownDuration = cooldownSeconds;
                 if (button) button.interactable = true;
                 if (cooldownFill) cooldownFill.fillAmount = 0f;
-                if (backgroundImage) backgroundImage.color = readyColor;
+    
                 return;
             }
 
@@ -251,7 +257,7 @@ namespace MyGame.UI
 
             if (button) button.interactable = false;
             if (cooldownFill) cooldownFill.fillAmount = 1f;
-            if (backgroundImage) backgroundImage.color = cooldownColor;
+
         }
 
         public void SetSkill(string newSkillId, KeyCode newKey, float newCdSeconds = -1f)
@@ -277,8 +283,7 @@ namespace MyGame.UI
         {
             if (button) button.interactable = false;
             listenKeyboard = false;
-            if (backgroundImage) backgroundImage.color = unboundColor;
-            if (cooldownFill) cooldownFill.color = unboundColor;
+            if (cooldownFill) cooldownFill.color = Color.gray;
             if (canvasGroup) canvasGroup.alpha = 0.2f;
             isOnCooldown = false;
             cooldownTimer = 0f;
@@ -290,7 +295,7 @@ namespace MyGame.UI
         {
             if (button) button.interactable = true;
             listenKeyboard = true;
-            if (backgroundImage) backgroundImage.color = readyColor;
+
             
             if (cooldownFill) 
             {
@@ -318,25 +323,45 @@ namespace MyGame.UI
         /// </summary>
         private void ApplyPressedEffect(bool pressed)
         {
-            if (backgroundImage == null) return;
+            Debug.Log($"[NineButtons] === ApplyPressedEffect({pressed}) 开始 ===");
+            Debug.Log($"[NineButtons] iconImage: {(iconImage != null ? "存在" : "null")}");
             
             if (pressed)
             {
-                // 按下时应用tinted效果 - 使用更明显的颜色混合
-                backgroundImage.color = pressedTintColor;
-                Debug.Log($"[NineButtons] {gameObject.name} 键盘按下tinted效果已应用");
+                // 按下时让中央图标变灰
+                if (iconImage != null)
+                {
+                    Color oldColor = iconImage.color;
+                    iconImage.color = iconPressedColor;
+                    Debug.Log($"[NineButtons] {gameObject.name} 图标颜色已改变：{oldColor} -> {iconImage.color}");
+                    Debug.Log($"[NineButtons] {gameObject.name} iconImage GameObject: {iconImage.gameObject.name}");
+                    Debug.Log($"[NineButtons] {gameObject.name} iconImage enabled: {iconImage.enabled}");
+                    Debug.Log($"[NineButtons] {gameObject.name} iconImage sprite: {(iconImage.sprite != null ? iconImage.sprite.name : "null")}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[NineButtons] {gameObject.name} iconImage 为空！无法变灰");
+                }
+                
+
+                
+                Debug.Log($"[NineButtons] {gameObject.name} 键盘按下效果已应用");
             }
             else
             {
-                // 释放时恢复正确的状态颜色
-                if (skillId == "00")
-                    backgroundImage.color = unboundColor;
-                else if (isOnCooldown)
-                    backgroundImage.color = cooldownColor;
-                else
-                    backgroundImage.color = readyColor;
-                Debug.Log($"[NineButtons] {gameObject.name} 键盘释放，恢复原色");
+                // 释放时恢复中央图标原始颜色
+                if (iconImage != null)
+                {
+                    iconImage.color = originalIconColor;
+                    Debug.Log($"[NineButtons] {gameObject.name} 图标颜色已恢复：{originalIconColor}");
+                }
+                
+
+                
+                Debug.Log($"[NineButtons] {gameObject.name} 键盘释放，颜色已恢复");
             }
+            
+            Debug.Log($"[NineButtons] === ApplyPressedEffect({pressed}) 结束 ===");
         }
 
         /// <summary>
@@ -344,21 +369,25 @@ namespace MyGame.UI
         /// </summary>
         private System.Collections.IEnumerator MouseClickTintEffect()
         {
-            if (backgroundImage == null) yield break;
+            // 保存当前图标颜色
+            Color originalIconColorTemp = iconImage != null ? iconImage.color : Color.white;
             
-            // 保存当前颜色
-            Color originalColor = backgroundImage.color;
-            
-            // 应用tinted效果 - 直接使用tinted颜色，更明显
-            backgroundImage.color = pressedTintColor;
-            Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击tinted效果已应用");
+            // 鼠标点击时让中央图标变灰
+            if (iconImage != null)
+            {
+                iconImage.color = iconPressedColor;
+                Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标变灰效果已应用");
+            }
             
             // 等待短暂时间
             yield return new WaitForSeconds(0.15f);
             
-            // 恢复原始颜色
-            backgroundImage.color = originalColor;
-            Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击效果结束，恢复原色");
+            // 恢复图标颜色
+            if (iconImage != null)
+            {
+                iconImage.color = originalIconColorTemp;
+                Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标颜色已恢复");
+            }
         }
 
         /// <summary>
@@ -541,6 +570,19 @@ namespace MyGame.UI
             StartCoroutine(TestKeyboardReleaseEffect());
         }
 
+        [ContextMenu("测试键盘输入检测")]
+        private void TestKeyboardInput()
+        {
+            Debug.Log($"[NineButtons] === 键盘输入检测测试 ===");
+            Debug.Log($"[NineButtons] 按钮: {gameObject.name}");
+            Debug.Log($"[NineButtons] keyBind: {keyBind}");
+            Debug.Log($"[NineButtons] skillId: {skillId}");
+            Debug.Log($"[NineButtons] shouldListenKeyboard: {(keyBind != KeyCode.None && skillId != "00")}");
+            Debug.Log($"[NineButtons] IsMovementSkill({skillId}): {IsMovementSkill(skillId)}");
+            Debug.Log($"[NineButtons] 当前按键状态: {Input.GetKey(keyBind)}");
+            Debug.Log($"[NineButtons] 当前按键按下: {Input.GetKeyDown(keyBind)}");
+        }
+
         [ContextMenu("显示按钮状态")]
         private void ShowButtonStatus()
         {
@@ -549,8 +591,70 @@ namespace MyGame.UI
             Debug.Log($"  - keyBind: {keyBind}");
             Debug.Log($"  - listenKeyboard: {listenKeyboard}");
             Debug.Log($"  - isPressed: {isPressed}");
-            Debug.Log($"  - backgroundImage: {(backgroundImage != null ? backgroundImage.color.ToString() : "null")}");
+
+            Debug.Log($"  - iconImage: {(iconImage != null ? iconImage.color.ToString() : "null")}");
+            Debug.Log($"  - iconImage GameObject: {(iconImage != null ? iconImage.gameObject.name : "null")}");
             Debug.Log($"  - shouldListenKeyboard: {(keyBind != KeyCode.None && skillId != "00")}");
+        }
+
+        [ContextMenu("测试图标变灰")]
+        private void TestIconGray()
+        {
+            Debug.Log($"[NineButtons] 测试图标变灰: {gameObject.name}");
+            if (iconImage != null)
+            {
+                Color oldColor = iconImage.color;
+                iconImage.color = Color.red; // 先变红测试是否有效果
+                Debug.Log($"[NineButtons] 图标颜色测试：{oldColor} -> {iconImage.color}");
+                
+                // 2秒后恢复
+                StartCoroutine(TestRestoreIconColor(oldColor));
+            }
+            else
+            {
+                Debug.LogError($"[NineButtons] {gameObject.name} iconImage 为空！请在Inspector中分配");
+            }
+        }
+
+        [ContextMenu("测试图标变灰效果")]
+        private void TestIconGrayEffect()
+        {
+            Debug.Log($"[NineButtons] 测试实际的图标变灰效果: {gameObject.name}");
+            if (iconImage != null)
+            {
+                Color oldColor = iconImage.color;
+                // 使用和ApplyPressedEffect相同的颜色
+                iconImage.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+                Debug.Log($"[NineButtons] 图标变灰测试：{oldColor} -> {iconImage.color}");
+                Debug.Log($"[NineButtons] 原始颜色 originalIconColor: {originalIconColor}");
+                
+                // 3秒后恢复
+                StartCoroutine(TestRestoreIconColorToOriginal());
+            }
+            else
+            {
+                Debug.LogError($"[NineButtons] {gameObject.name} iconImage 为空！");
+            }
+        }
+
+        private System.Collections.IEnumerator TestRestoreIconColorToOriginal()
+        {
+            yield return new WaitForSeconds(3f);
+            if (iconImage != null)
+            {
+                iconImage.color = originalIconColor;
+                Debug.Log($"[NineButtons] 图标颜色已恢复到原始颜色: {originalIconColor}");
+            }
+        }
+
+        private System.Collections.IEnumerator TestRestoreIconColor(Color originalColor)
+        {
+            yield return new WaitForSeconds(2f);
+            if (iconImage != null)
+            {
+                iconImage.color = originalColor;
+                Debug.Log($"[NineButtons] 图标颜色已恢复: {originalColor}");
+            }
         }
 
         private System.Collections.IEnumerator TestKeyboardReleaseEffect()

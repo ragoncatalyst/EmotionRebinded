@@ -30,6 +30,20 @@ public class UpgradePanelController : MonoBehaviour
     public AnimationCurve characterCurve;       // 立绘从下往上变速度滑出曲线
     public float optionAnimationDuration = 1f;  // 选项滑出动画时长
     public float optionSlideOutDuration = 0.8f; // 选项滑出屏幕时长
+    
+    [Header("立绘进入动画配置")]
+    public float characterEnterDuration = 1.5f; // 立绘从底边进入的动画时长
+    public AnimationCurve characterEnterCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);  // 立绘进入曲线
+    public float characterBottomOffset = 500f;  // 立绘起始位置距离底边的偏移量
+    
+    [Header("选项进入动画配置")]
+    public float optionEnterDuration = 0.8f;    // 单个选项进入动画时长
+    public float optionEnterDelay = 0.2f;       // 选项之间的延迟时间
+    public float optionExtraDistance = 200f;    // 选项额外的起始距离（在原有rightOffset基础上）
+    public AnimationCurve optionEnterCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);     // 选项进入曲线
+    
+    [Header("动画时序配置")]
+    public float optionStartDelay = 0.8f;       // 选项开始出现的延迟时间（相对于立绘动画开始的时间）
 
     [Header("面板架构 - 按钮")]
     public Button openButton;                   // 打开面板的按钮
@@ -64,6 +78,9 @@ public class UpgradePanelController : MonoBehaviour
     void Start()
     {
         Debug.Log("[UpgradePanelController] Start 初始化开始");
+        
+        // 确保动画曲线有默认值
+        InitializeAnimationCurves();
         
         if (panelRoot != null)
         {
@@ -151,6 +168,26 @@ public class UpgradePanelController : MonoBehaviour
         else if (upgradeAnimator != null)
         {
             Debug.Log($"[UpgradePanelController] 升级动画已配置: {upgradeAnimator.name}, 触发器: {upgradeAnimationTrigger}");
+        }
+    }
+
+    /// <summary>
+    /// 初始化动画曲线，确保有默认值
+    /// </summary>
+    private void InitializeAnimationCurves()
+    {
+        // 如果立绘进入曲线为空，创建默认的EaseInOut曲线
+        if (characterEnterCurve == null || characterEnterCurve.keys.Length == 0)
+        {
+            characterEnterCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+            Debug.Log("[UpgradePanelController] 创建默认的立绘进入动画曲线");
+        }
+        
+        // 如果选项进入曲线为空，创建默认的EaseInOut曲线
+        if (optionEnterCurve == null || optionEnterCurve.keys.Length == 0)
+        {
+            optionEnterCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+            Debug.Log("[UpgradePanelController] 创建默认的选项进入动画曲线");
         }
     }
 
@@ -253,29 +290,31 @@ public class UpgradePanelController : MonoBehaviour
             Debug.Log($"[UpgradePanelController] 子对象 {i}: {child.name}, 激活状态: {child.gameObject.activeSelf}");
         }
 
-        // 检查角色立绘状态
+        // 检查角色立绘状态（但不在这里设置位置，等待动画处理）
         if (characterImage != null)
         {
             Debug.Log($"[UpgradePanelController] 角色立绘状态: 激活={characterImage.gameObject.activeSelf}, 透明度={characterImage.color.a}");
             Debug.Log($"[UpgradePanelController] 角色立绘Sprite: {(characterImage.sprite != null ? characterImage.sprite.name : "NULL")}");
-            Debug.Log($"[UpgradePanelController] 角色立绘CanvasRenderer: {characterImage.canvasRenderer.GetAlpha()}");
             
-            // 确保角色立绘可见
-            characterImage.gameObject.SetActive(true);
-            characterImage.enabled = true;
-            
-            // 设置颜色和透明度
-            Color color = characterImage.color;
-            color.a = 1f;
-            characterImage.color = color;
-            
-            // 确保CanvasRenderer透明度正确
-            characterImage.canvasRenderer.SetAlpha(1f);
-            
-            // 如果没有Sprite，只记录警告，不创建纹理
+            // 如果没有Sprite，只记录警告
             if (characterImage.sprite == null)
             {
                 Debug.LogWarning("[UpgradePanelController] 角色立绘没有Sprite，请在Inspector中分配");
+            }
+        }
+
+        // 先将所有选项设置到屏幕外，避免闪现
+        foreach (var opt in options)
+        {
+            if (opt.rect != null)
+            {
+                // 立即设置到屏幕外的位置，避免闪现
+                Vector2 hiddenPos = new Vector2(opt.targetAnchoredPos.x + opt.rightOffset + optionExtraDistance, opt.targetAnchoredPos.y);
+                opt.rect.anchoredPosition = hiddenPos;
+                
+                // 然后激活选项
+                opt.rect.gameObject.SetActive(true);
+                Debug.Log($"[UpgradePanelController] 选项 {System.Array.IndexOf(options, opt)} 预设到屏幕外位置: {hiddenPos}");
             }
         }
 
@@ -286,9 +325,6 @@ public class UpgradePanelController : MonoBehaviour
             if (opt.rect != null)
             {
                 Debug.Log($"[UpgradePanelController] 选项 {i}: 激活={opt.rect.gameObject.activeSelf}");
-                
-                // 确保选项可见
-                opt.rect.gameObject.SetActive(true);
                 
                 // 检查选项的Image组件
                 Image optionImage = opt.rect.GetComponent<Image>();
@@ -344,26 +380,24 @@ public class UpgradePanelController : MonoBehaviour
         // ⭐ 启用选择按钮的键盘输入
         NineSelectionButtons.EnableAllKeyboardInput();
 
-        // 先不执行动画，确保UI元素直接可见
+        // 先设置立绘到屏幕外的起始位置，然后启动进入动画
         if (characterImage != null)
         {
-            // 直接设置到目标位置，不使用动画
+            // 确保立绘是可见的
+            characterImage.gameObject.SetActive(true);
+            characterImage.enabled = true;
+            
             RectTransform charRect = characterImage.rectTransform;
-            if (characterTargetPos != null)
-            {
-                charRect.anchoredPosition = characterTargetPos.anchoredPosition;
-                Debug.Log($"[UpgradePanelController] 角色立绘位置设置为: {charRect.anchoredPosition}");
-            }
-            else
-            {
-                // 如果没有目标位置，设置到屏幕中央
-                charRect.anchoredPosition = Vector2.zero;
-                Debug.Log("[UpgradePanelController] 角色立绘位置设置为屏幕中央");
-            }
+            Vector2 targetPos = new Vector2(-500, 0); // 目标位置固定为(-500, 0)
+            Vector2 startPos = new Vector2(targetPos.x, targetPos.y - characterBottomOffset); // 起始位置在目标位置下方
+            
+            // 立即设置到屏幕外的起始位置
+            charRect.anchoredPosition = startPos;
+            Debug.Log($"[UpgradePanelController] 立绘设置到起始位置: {startPos}, 目标位置: {targetPos}");
         }
 
-        // 启动选项滑入动画（面板出现后选项再滑入）
-        StartCoroutine(AnimateOptionsIn());
+        // 启动协调的动画序列：立绘先进入，在快结束时选项开始出现
+        StartCoroutine(CoordinatedEnterAnimation());
     }
 
     public void ClosePanel()
@@ -411,32 +445,138 @@ public class UpgradePanelController : MonoBehaviour
     }
 
     /// <summary>
-    /// 所有选项滑入动画
+    /// 协调的进入动画：立绘先进入，在快结束时选项开始出现
+    /// </summary>
+    private IEnumerator CoordinatedEnterAnimation()
+    {
+        Debug.Log("[UpgradePanelController] ===== 开始协调进入动画序列 =====");
+        
+        // 立即启动立绘动画
+        if (characterImage != null)
+        {
+            StartCoroutine(AnimateCharacterEnter());
+        }
+        
+        // 等待指定时间后启动选项动画（让立绘先进入大部分）
+        Debug.Log($"[UpgradePanelController] 等待 {optionStartDelay} 秒后启动选项动画");
+        yield return new WaitForSeconds(optionStartDelay);
+        
+        Debug.Log("[UpgradePanelController] 现在启动选项进入动画");
+        StartCoroutine(AnimateOptionsIn());
+        
+        Debug.Log("[UpgradePanelController] ===== 协调进入动画序列完成 =====");
+    }
+
+    /// <summary>
+    /// 立绘从底边外进入动画
+    /// </summary>
+    private IEnumerator AnimateCharacterEnter()
+    {
+        Debug.Log("[UpgradePanelController] ===== 开始立绘进入动画 =====");
+        
+        if (characterImage == null)
+        {
+            Debug.LogError("[UpgradePanelController] characterImage 为空！动画无法执行");
+            yield break;
+        }
+        
+        RectTransform charRect = characterImage.rectTransform;
+        Vector2 targetPos = characterTargetPos != null ? characterTargetPos.anchoredPosition : Vector2.zero;
+        
+        // 修正目标位置：如果你希望到达(-500, 0)，在这里设置
+        targetPos = new Vector2(-500, 0); // 强制设置目标位置为(-500, 0)
+        
+        Vector2 startPos = charRect.anchoredPosition; // 使用当前位置作为起始位置（已在OpenPanel中设置）
+        
+        Debug.Log($"[UpgradePanelController] 立绘动画参数:");
+        Debug.Log($"  - 动画时长: {characterEnterDuration} 秒");
+        Debug.Log($"  - 起始位置: {startPos}");
+        Debug.Log($"  - 目标位置: {targetPos}");
+        Debug.Log($"  - 移动距离: {Vector2.Distance(startPos, targetPos)}");
+        Debug.Log($"  - 动画曲线: {(characterEnterCurve != null ? "已设置" : "未设置")}");
+        
+        // 检查是否需要移动
+        if (Vector2.Distance(startPos, targetPos) < 1f)
+        {
+            Debug.LogWarning("[UpgradePanelController] 起始位置和目标位置太接近，动画可能不明显！");
+        }
+        
+        float t = 0f;
+        int frameCount = 0;
+        while (t < characterEnterDuration)
+        {
+            float progress = t / characterEnterDuration;
+            float eval = characterEnterCurve != null ? characterEnterCurve.Evaluate(progress) : progress;
+            Vector2 currentPos = Vector2.LerpUnclamped(startPos, targetPos, eval);
+            charRect.anchoredPosition = currentPos;
+            
+            // 每30帧打印一次位置信息
+            if (frameCount % 30 == 0)
+            {
+                Debug.Log($"[UpgradePanelController] 立绘动画进度: {progress:F2} -> 位置: {currentPos}");
+            }
+            
+            t += Time.deltaTime;
+            frameCount++;
+            yield return null;
+        }
+        
+        // 确保到达目标位置
+        charRect.anchoredPosition = targetPos;
+        Debug.Log($"[UpgradePanelController] ===== 立绘进入动画完成！最终位置: {targetPos} =====");
+    }
+
+    /// <summary>
+    /// 所有选项滑入动画（依次延迟进入）
     /// </summary>
     private IEnumerator AnimateOptionsIn()
     {
         Debug.Log("[UpgradePanelController] 开始选项滑入动画");
         
-        // 先将所有选项设置到屏幕外的起始位置
-        foreach (var opt in options)
+        // 依次启动每个选项的滑入动画（带延迟）
+        for (int i = 0; i < options.Length; i++)
         {
-            if (opt.rect != null)
+            if (options[i].rect != null)
             {
-                Vector2 startPos = new Vector2(opt.targetAnchoredPos.x + opt.rightOffset, opt.targetAnchoredPos.y);
-                opt.rect.anchoredPosition = startPos;
+                StartCoroutine(AnimateOptionEnter(options[i], i * optionEnterDelay));
             }
         }
         
-        // 同时启动所有选项的滑入动画
-        foreach (var opt in options)
+        // 等待所有动画完成（最后一个选项的延迟时间 + 动画时长）
+        float totalDuration = (options.Length - 1) * optionEnterDelay + optionEnterDuration;
+        yield return new WaitForSeconds(totalDuration);
+        Debug.Log("[UpgradePanelController] 选项滑入动画完成");
+    }
+
+    /// <summary>
+    /// 单个选项进入动画（带延迟）
+    /// </summary>
+    private IEnumerator AnimateOptionEnter(ChoiceOption opt, float delay)
+    {
+        // 等待延迟时间
+        if (delay > 0)
         {
-            if (opt.rect != null)
-                StartCoroutine(AnimateOptionIn(opt));
+            yield return new WaitForSeconds(delay);
         }
         
-        // 等待动画完成
-        yield return new WaitForSeconds(optionAnimationDuration);
-        Debug.Log("[UpgradePanelController] 选项滑入动画完成");
+        Debug.Log($"[UpgradePanelController] 选项 {System.Array.IndexOf(options, opt)} 开始进入动画");
+        
+        RectTransform rect = opt.rect;
+        Vector2 startPos = new Vector2(opt.targetAnchoredPos.x + opt.rightOffset + optionExtraDistance, opt.targetAnchoredPos.y);
+        Vector2 endPos = opt.targetAnchoredPos;
+
+        float t = 0f;
+        while (t < optionEnterDuration)
+        {
+            float progress = t / optionEnterDuration;
+            float eval = optionEnterCurve != null ? optionEnterCurve.Evaluate(progress) : progress;
+            rect.anchoredPosition = Vector2.LerpUnclamped(startPos, endPos, eval);
+            t += Time.deltaTime;
+            yield return null;
+        }
+        rect.anchoredPosition = endPos;
+        
+        Debug.Log($"[UpgradePanelController] 选项 {System.Array.IndexOf(options, opt)} 进入动画完成");
     }
 
     private IEnumerator AnimateOptionIn(ChoiceOption opt)
@@ -974,6 +1114,68 @@ public class UpgradePanelController : MonoBehaviour
     {
         Debug.Log("[UpgradePanelController] 手动测试升级按钮序列");
         OnUpgradeButtonClicked();
+    }
+
+    /// <summary>
+    /// 测试面板进入动画：直接测试面板打开和动画效果
+    /// </summary>
+    [ContextMenu("测试面板进入动画")]
+    public void TestPanelEnterAnimation()
+    {
+        Debug.Log("[UpgradePanelController] 手动测试面板进入动画");
+        
+        // 先关闭面板（如果已打开）
+        if (isPanelOpen)
+        {
+            ClosePanel();
+        }
+        
+        // 等待一小段时间后打开面板
+        StartCoroutine(DelayedOpenPanel());
+    }
+
+    /// <summary>
+    /// 测试立绘进入动画：单独测试立绘从底部滑入
+    /// </summary>
+    [ContextMenu("测试立绘进入动画")]
+    public void TestCharacterEnterAnimation()
+    {
+        Debug.Log("[UpgradePanelController] 手动测试立绘进入动画");
+        
+        if (characterImage != null)
+        {
+            // 确保面板是打开的
+            if (!isPanelOpen)
+            {
+                panelRoot.SetActive(true);
+                isPanelOpen = true;
+            }
+            
+            // 确保立绘是可见的
+            characterImage.gameObject.SetActive(true);
+            characterImage.enabled = true;
+            
+            // 重置到起始位置并开始动画
+            RectTransform charRect = characterImage.rectTransform;
+            Vector2 targetPos = new Vector2(-500, 0); // 目标位置固定为(-500, 0)
+            Vector2 startPos = new Vector2(targetPos.x, targetPos.y - characterBottomOffset); // 起始位置在目标位置下方
+            charRect.anchoredPosition = startPos;
+            
+            Debug.Log($"[UpgradePanelController] 立绘测试 - 起始: {startPos}, 目标: {targetPos}, 偏移: {characterBottomOffset}");
+            
+            // 启动动画
+            StartCoroutine(AnimateCharacterEnter());
+        }
+        else
+        {
+            Debug.LogError("[UpgradePanelController] characterImage 为空，无法测试立绘动画");
+        }
+    }
+
+    private IEnumerator DelayedOpenPanel()
+    {
+        yield return new WaitForSeconds(0.5f);
+        OpenPanel();
     }
 
     /// <summary>
