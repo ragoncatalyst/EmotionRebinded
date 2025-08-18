@@ -1,4 +1,0 @@
-repository "EmotionRebinded@tj_ragon_catalyst@cloud.cn"
-  path "/"
-    br "/main"
-    co "/main"

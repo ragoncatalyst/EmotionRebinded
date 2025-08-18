@@ -24,6 +24,10 @@ public class DynamicSorting : MonoBehaviour
     [SerializeField] private float sortingPrecision = 100f;   // 排序精度（Y坐标乘数）
     [SerializeField] private bool updateEveryFrame = true;    // 是否每帧更新
     
+    [Header("排序层级限制")]
+    [SerializeField] private int minSortingOrder = -32768;    // 最小排序层级（防止过小导致消失）
+    [SerializeField] private int maxSortingOrder = 32767;     // 最大排序层级（防止过大导致问题）
+    
     [Header("参考位置配置")]
     [SerializeField] private Vector2 sortingOffset = new Vector2(0f, -0.5f); // 排序计算的偏移量（默认向下偏移到脚部）
     [SerializeField] private bool showSortingPoint = true;    // 是否在Scene视图中显示排序点（默认开启）
@@ -92,7 +96,16 @@ public class DynamicSorting : MonoBehaviour
         
         // 基于Y坐标计算排序层级
         // Y坐标越小（越靠下），排序层级越高（越靠前）
-        int newSortingOrder = baseSortingOrder - Mathf.RoundToInt(sortingPosition.y * sortingPrecision);
+        int calculatedSortingOrder = baseSortingOrder - Mathf.RoundToInt(sortingPosition.y * sortingPrecision);
+        
+        // 限制排序层级在安全范围内，防止过小或过大导致渲染问题
+        int newSortingOrder = Mathf.Clamp(calculatedSortingOrder, minSortingOrder, maxSortingOrder);
+        
+        // 如果计算值被限制了，输出警告
+        if (calculatedSortingOrder != newSortingOrder)
+        {
+            Debug.LogWarning($"[DynamicSorting] {gameObject.name} 排序层级被限制: 计算值{calculatedSortingOrder} → 限制后{newSortingOrder} (Y:{sortingPosition.y:F2})");
+        }
         
         // 只在排序层级改变时更新，避免不必要的性能消耗
         if (lastSortingOrder != newSortingOrder)
@@ -146,17 +159,14 @@ public class DynamicSorting : MonoBehaviour
         switch (objectType)
         {
             case ObjectType.Player:
-                baseSortingOrder = 100;  // 降低基础层级，让Y坐标影响更明显
-                // 保留Inspector中设置的X值，只建议Y值
-                if (sortingOffset.y == 0f) // 如果Y值还是默认值，则应用建议值
-                {
-                    sortingOffset = new Vector2(sortingOffset.x, -0.5f);
-                }
+                baseSortingOrder = 1000;  // 提高Player基础层级，确保不被地面遮挡
+                // Player使用GameObject中心点作为排序参考，偏移设为(0,0)
+                sortingOffset = new Vector2(0f, 0f);
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Enemy:
-                baseSortingOrder = 80;   // 降低基础层级
+                baseSortingOrder = 800;   // 提高基础层级，但低于Player
                 if (sortingOffset.y == 0f)
                 {
                     sortingOffset = new Vector2(sortingOffset.x, -0.4f);
@@ -165,7 +175,7 @@ public class DynamicSorting : MonoBehaviour
                 break;
                 
             case ObjectType.Bush:
-                baseSortingOrder = 50;   // 降低基础层级
+                baseSortingOrder = 500;   // 提高基础层级，但低于Enemy
                 if (sortingOffset.y == 0f)
                 {
                     sortingOffset = new Vector2(sortingOffset.x, -0.8f); // 将参考点移到灌木丛底部
@@ -174,7 +184,7 @@ public class DynamicSorting : MonoBehaviour
                 break;
                 
             case ObjectType.Building:
-                baseSortingOrder = 30;   // 降低基础层级
+                baseSortingOrder = 300;   // 提高基础层级，但低于Bush
                 if (sortingOffset.y == 0f)
                 {
                     sortingOffset = new Vector2(sortingOffset.x, -1.0f);
@@ -200,17 +210,45 @@ public class DynamicSorting : MonoBehaviour
         if (spriteRenderer != null)
         {
             Vector3 sortingPos = GetSortingPosition();
+            int calculatedOrder = baseSortingOrder - Mathf.RoundToInt(sortingPos.y * sortingPrecision);
+            int clampedOrder = Mathf.Clamp(calculatedOrder, minSortingOrder, maxSortingOrder);
+            
             Debug.Log($"[DynamicSorting] === {gameObject.name} 排序信息 ===");
             Debug.Log($"[DynamicSorting] GameObject Y坐标: {transform.position.y:F3}");
             Debug.Log($"[DynamicSorting] 排序偏移量: {sortingOffset}");
             Debug.Log($"[DynamicSorting] 排序计算Y坐标: {sortingPos.y:F3}");
             Debug.Log($"[DynamicSorting] 基础排序层级: {baseSortingOrder}");
+            Debug.Log($"[DynamicSorting] 计算排序层级: {calculatedOrder}");
+            Debug.Log($"[DynamicSorting] 限制后排序层级: {clampedOrder}");
             Debug.Log($"[DynamicSorting] 当前排序层级: {spriteRenderer.sortingOrder}");
             Debug.Log($"[DynamicSorting] 排序精度: {sortingPrecision}");
+            Debug.Log($"[DynamicSorting] 排序范围: [{minSortingOrder}, {maxSortingOrder}]");
             Debug.Log($"[DynamicSorting] 每帧更新: {updateEveryFrame}");
             
             // 查找并比较Player和Bush
             CompareWithOtherObjects();
+        }
+    }
+    
+    /// <summary>
+    /// 测试高Y坐标排序（调试用）
+    /// </summary>
+    [ContextMenu("测试高Y坐标排序")]
+    public void TestHighYSorting()
+    {
+        Debug.Log($"[DynamicSorting] === {gameObject.name} 高Y坐标测试 ===");
+        
+        float[] testYValues = { 0f, 1f, 1.5f, 2f, 3f, 5f, 10f };
+        
+        foreach (float testY in testYValues)
+        {
+            Vector3 testPos = new Vector3(transform.position.x, testY, transform.position.z);
+            Vector3 sortingPos = testPos + (Vector3)sortingOffset;
+            int calculatedOrder = baseSortingOrder - Mathf.RoundToInt(sortingPos.y * sortingPrecision);
+            int clampedOrder = Mathf.Clamp(calculatedOrder, minSortingOrder, maxSortingOrder);
+            
+            string status = (calculatedOrder == clampedOrder) ? "正常" : "被限制";
+            Debug.Log($"[DynamicSorting] Y={testY:F1} → 计算值:{calculatedOrder} → 最终值:{clampedOrder} ({status})");
         }
     }
     
@@ -245,12 +283,9 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("配置为Player排序")]
     public void ConfigureForPlayer()
     {
-        baseSortingOrder = 100;  // 降低基础层级，让Y坐标影响更明显
-        // 保留Inspector中设置的X值，只建议Y值
-        if (sortingOffset.y == 0f)
-        {
-            sortingOffset = new Vector2(sortingOffset.x, -0.5f); // Player脚部偏移
-        }
+        baseSortingOrder = 1000;  // 提高Player基础层级，确保不被地面遮挡
+        // Player使用GameObject中心点作为排序参考，偏移设为(0,0)
+        sortingOffset = new Vector2(0f, 0f);
         showSortingPoint = true;
         UpdateSortingOrder();
         Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Player排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
@@ -262,7 +297,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("配置为Bush排序")]
     public void ConfigureForBush()
     {
-        baseSortingOrder = 50;   // 降低基础层级
+        baseSortingOrder = 500;   // 提高基础层级，但低于Enemy
         // 保留Inspector中设置的X值
         if (sortingOffset.y == 0f)
         {
@@ -279,7 +314,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("配置为Enemy排序")]
     public void ConfigureForEnemy()
     {
-        baseSortingOrder = 80;   // 降低基础层级
+        baseSortingOrder = 800;   // 提高基础层级，但低于Player
         if (sortingOffset.y == 0f)
         {
             sortingOffset = new Vector2(sortingOffset.x, -0.4f); // Enemy脚部偏移
