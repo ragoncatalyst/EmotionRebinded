@@ -159,14 +159,14 @@ public class DynamicSorting : MonoBehaviour
         switch (objectType)
         {
             case ObjectType.Player:
-                baseSortingOrder = 1000;  // 提高Player基础层级，确保不被地面遮挡
+                baseSortingOrder = 200;  // 适中的基础层级，确保不被地面遮挡但能与Bush动态遮挡
                 // Player使用GameObject中心点作为排序参考，偏移设为(0,0)
                 sortingOffset = new Vector2(0f, 0f);
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Enemy:
-                baseSortingOrder = 800;   // 提高基础层级，但低于Player
+                baseSortingOrder = 180;   // 略低于Player
                 if (sortingOffset.y == 0f)
                 {
                     sortingOffset = new Vector2(sortingOffset.x, -0.4f);
@@ -175,7 +175,7 @@ public class DynamicSorting : MonoBehaviour
                 break;
                 
             case ObjectType.Bush:
-                baseSortingOrder = 500;   // 提高基础层级，但低于Enemy
+                baseSortingOrder = 150;   // 更接近Player，确保能动态遮挡
                 if (sortingOffset.y == 0f)
                 {
                     sortingOffset = new Vector2(sortingOffset.x, -0.8f); // 将参考点移到灌木丛底部
@@ -283,7 +283,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("配置为Player排序")]
     public void ConfigureForPlayer()
     {
-        baseSortingOrder = 1000;  // 提高Player基础层级，确保不被地面遮挡
+        baseSortingOrder = 200;  // 适中的基础层级，确保不被地面遮挡但能与Bush动态遮挡
         // Player使用GameObject中心点作为排序参考，偏移设为(0,0)
         sortingOffset = new Vector2(0f, 0f);
         showSortingPoint = true;
@@ -297,7 +297,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("配置为Bush排序")]
     public void ConfigureForBush()
     {
-        baseSortingOrder = 500;   // 提高基础层级，但低于Enemy
+        baseSortingOrder = 150;   // 更接近Player，确保能动态遮挡
         // 保留Inspector中设置的X值
         if (sortingOffset.y == 0f)
         {
@@ -314,7 +314,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("配置为Enemy排序")]
     public void ConfigureForEnemy()
     {
-        baseSortingOrder = 800;   // 提高基础层级，但低于Player
+        baseSortingOrder = 180;   // 略低于Player
         if (sortingOffset.y == 0f)
         {
             sortingOffset = new Vector2(sortingOffset.x, -0.4f); // Enemy脚部偏移
