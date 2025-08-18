@@ -147,25 +147,38 @@ public class DynamicSorting : MonoBehaviour
         {
             case ObjectType.Player:
                 baseSortingOrder = 100;  // 降低基础层级，让Y坐标影响更明显
-                sortingOffset = new Vector2(0f, -0.5f);
+                // 保留Inspector中设置的X值，只建议Y值
+                if (sortingOffset.y == 0f) // 如果Y值还是默认值，则应用建议值
+                {
+                    sortingOffset = new Vector2(sortingOffset.x, -0.5f);
+                }
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Enemy:
                 baseSortingOrder = 80;   // 降低基础层级
-                sortingOffset = new Vector2(0f, -0.4f);
+                if (sortingOffset.y == 0f)
+                {
+                    sortingOffset = new Vector2(sortingOffset.x, -0.4f);
+                }
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Enemy类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Bush:
                 baseSortingOrder = 50;   // 降低基础层级
-                sortingOffset = new Vector2(0f, -0.8f); // 将参考点移到灌木丛底部
+                if (sortingOffset.y == 0f)
+                {
+                    sortingOffset = new Vector2(sortingOffset.x, -0.8f); // 将参考点移到灌木丛底部
+                }
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Bush类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Building:
                 baseSortingOrder = 30;   // 降低基础层级
-                sortingOffset = new Vector2(0f, -1.0f);
+                if (sortingOffset.y == 0f)
+                {
+                    sortingOffset = new Vector2(sortingOffset.x, -1.0f);
+                }
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Building类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
@@ -233,7 +246,11 @@ public class DynamicSorting : MonoBehaviour
     public void ConfigureForPlayer()
     {
         baseSortingOrder = 100;  // 降低基础层级，让Y坐标影响更明显
-        sortingOffset = new Vector2(0f, -0.5f); // Player脚部偏移
+        // 保留Inspector中设置的X值，只建议Y值
+        if (sortingOffset.y == 0f)
+        {
+            sortingOffset = new Vector2(sortingOffset.x, -0.5f); // Player脚部偏移
+        }
         showSortingPoint = true;
         UpdateSortingOrder();
         Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Player排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
@@ -246,7 +263,11 @@ public class DynamicSorting : MonoBehaviour
     public void ConfigureForBush()
     {
         baseSortingOrder = 50;   // 降低基础层级
-        sortingOffset = new Vector2(0f, -0.8f); // 将参考点移到灌木丛底部
+        // 保留Inspector中设置的X值
+        if (sortingOffset.y == 0f)
+        {
+            sortingOffset = new Vector2(sortingOffset.x, -0.8f); // 将参考点移到灌木丛底部
+        }
         showSortingPoint = true;
         UpdateSortingOrder();
         Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Bush排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
@@ -259,7 +280,10 @@ public class DynamicSorting : MonoBehaviour
     public void ConfigureForEnemy()
     {
         baseSortingOrder = 80;   // 降低基础层级
-        sortingOffset = new Vector2(0f, -0.4f); // Enemy脚部偏移
+        if (sortingOffset.y == 0f)
+        {
+            sortingOffset = new Vector2(sortingOffset.x, -0.4f); // Enemy脚部偏移
+        }
         showSortingPoint = true;
         UpdateSortingOrder();
         Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Enemy排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
