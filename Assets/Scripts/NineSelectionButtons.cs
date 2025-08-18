@@ -26,6 +26,9 @@ public class NineSelectionButtons : MonoBehaviour
     [SerializeField] private string displayKeyBind = "";           // 显示的按键（如Q）
     [SerializeField] private string displaySkillId = "";           // 显示的技能编号（如03）
 
+    [Header("键盘输入配置")]
+    [SerializeField] private bool enableKeyboardInput = true;     // 是否启用键盘输入
+    
     [Header("调试信息")]
     [SerializeField] private bool isMatched = false;               // 是否已匹配成功
 
@@ -59,6 +62,38 @@ public class NineSelectionButtons : MonoBehaviour
 
         // 更新显示
         UpdateDisplay();
+    }
+
+    /// <summary>
+    /// 检测键盘输入
+    /// </summary>
+    private void Update()
+    {
+        // 只有在启用键盘输入且升级面板打开时才检测键盘
+        if (!enableKeyboardInput || correspondingBattleButton == null)
+            return;
+
+        // 检查升级面板是否打开
+        UpgradePanelController upgradePanel = FindObjectOfType<UpgradePanelController>();
+        if (upgradePanel == null || !IsPanelOpen(upgradePanel))
+            return;
+
+        // 检测对应的键盘按键
+        KeyCode targetKey = correspondingBattleButton.keyBind;
+        if (targetKey != KeyCode.None && Input.GetKeyDown(targetKey))
+        {
+            Debug.Log($"[NineSelectionButtons] 检测到键盘输入 {targetKey}，触发选择按钮 {gameObject.name}");
+            OnSelectionButtonClicked();
+        }
+    }
+
+    /// <summary>
+    /// 检查升级面板是否打开
+    /// </summary>
+    private bool IsPanelOpen(UpgradePanelController panel)
+    {
+        // 通过检查面板的GameObject是否激活来判断
+        return panel != null && panel.gameObject.activeInHierarchy;
     }
 
     /// <summary>
@@ -265,6 +300,57 @@ public class NineSelectionButtons : MonoBehaviour
     }
 
     /// <summary>
+    /// 启用或禁用键盘输入
+    /// </summary>
+    public void SetKeyboardInputEnabled(bool enabled)
+    {
+        enableKeyboardInput = enabled;
+        Debug.Log($"[NineSelectionButtons] {gameObject.name} 键盘输入 {(enabled ? "启用" : "禁用")}");
+    }
+
+    /// <summary>
+    /// 获取键盘输入状态
+    /// </summary>
+    public bool IsKeyboardInputEnabled()
+    {
+        return enableKeyboardInput;
+    }
+
+    /// <summary>
+    /// 获取对应的按键
+    /// </summary>
+    public KeyCode GetTargetKey()
+    {
+        return correspondingBattleButton != null ? correspondingBattleButton.keyBind : KeyCode.None;
+    }
+
+    /// <summary>
+    /// 启用所有选择按钮的键盘输入
+    /// </summary>
+    public static void EnableAllKeyboardInput()
+    {
+        NineSelectionButtons[] allSelectionButtons = FindObjectsOfType<NineSelectionButtons>();
+        foreach (var button in allSelectionButtons)
+        {
+            button.SetKeyboardInputEnabled(true);
+        }
+        Debug.Log($"[NineSelectionButtons] 已启用所有 {allSelectionButtons.Length} 个选择按钮的键盘输入");
+    }
+
+    /// <summary>
+    /// 禁用所有选择按钮的键盘输入
+    /// </summary>
+    public static void DisableAllKeyboardInput()
+    {
+        NineSelectionButtons[] allSelectionButtons = FindObjectsOfType<NineSelectionButtons>();
+        foreach (var button in allSelectionButtons)
+        {
+            button.SetKeyboardInputEnabled(false);
+        }
+        Debug.Log($"[NineSelectionButtons] 已禁用所有 {allSelectionButtons.Length} 个选择按钮的键盘输入");
+    }
+
+    /// <summary>
     /// 处理选择按钮点击事件
     /// </summary>
     private void OnSelectionButtonClicked()
@@ -375,6 +461,36 @@ public class NineSelectionButtons : MonoBehaviour
     {
         Debug.Log($"[NineSelectionButtons] 手动测试技能绑定 {gameObject.name}");
         OnSelectionButtonClicked();
+    }
+
+    /// <summary>
+    /// 在Inspector中测试键盘输入
+    /// </summary>
+    [ContextMenu("测试键盘输入")]
+    public void TestKeyboardInput()
+    {
+        KeyCode targetKey = GetTargetKey();
+        Debug.Log($"[NineSelectionButtons] {gameObject.name} 键盘输入测试:");
+        Debug.Log($"  - 目标按键: {targetKey}");
+        Debug.Log($"  - 键盘输入启用: {enableKeyboardInput}");
+        Debug.Log($"  - 匹配状态: {isMatched}");
+        Debug.Log($"  - 对应战斗按钮: {(correspondingBattleButton != null ? correspondingBattleButton.gameObject.name : "null")}");
+        
+        // 模拟键盘输入
+        if (correspondingBattleButton != null)
+        {
+            Debug.Log($"[NineSelectionButtons] 模拟键盘输入 {targetKey}");
+            OnSelectionButtonClicked();
+        }
+    }
+
+    /// <summary>
+    /// 切换键盘输入启用状态
+    /// </summary>
+    [ContextMenu("切换键盘输入")]
+    public void ToggleKeyboardInput()
+    {
+        SetKeyboardInputEnabled(!enableKeyboardInput);
     }
 
     #endregion

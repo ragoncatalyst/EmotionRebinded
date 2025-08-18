@@ -190,8 +190,19 @@ namespace MyGame.UI
         {
             if (isOnCooldown || skillId == "00") return;
             
-            // 执行技能效果（移动技能没有冷却，可以持续执行）
-            ExecuteSkill();
+            // 找到PlayerController并执行持续移动
+            var playerController = FindObjectOfType<PlayerController>();
+            if (playerController != null)
+            {
+                if (playerController.IsMovementSkill(skillId))
+                {
+                    playerController.ExecuteMovement(skillId, Time.deltaTime);
+                }
+            }
+            else
+            {
+                Debug.LogError("[NineButtons] 未找到PlayerController");
+            }
         }
 
         /// <summary>
@@ -199,7 +210,8 @@ namespace MyGame.UI
         /// </summary>
         private bool IsMovementSkill(string skillId)
         {
-            return skillId == "01" || skillId == "02" || skillId == "03" || skillId == "04";
+            var playerController = FindObjectOfType<PlayerController>();
+            return playerController != null && playerController.IsMovementSkill(skillId);
         }
 
         /// <summary>
