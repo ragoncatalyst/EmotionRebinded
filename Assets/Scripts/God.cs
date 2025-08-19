@@ -99,16 +99,23 @@ public class God : MonoBehaviour
             }
         }
         
-        // 也可以通过Tag查找
-        GameObject[] monstersByTag = GameObject.FindGameObjectsWithTag("Enemy");
-        foreach (var monster in monstersByTag)
+        // 安全地通过Tag查找（如果Tag存在的话）
+        try
         {
-            if (monster.activeSelf)
+            GameObject[] monstersByTag = GameObject.FindGameObjectsWithTag("Enemy");
+            foreach (var monster in monstersByTag)
             {
-                monster.SetActive(false);
-                disabledCount++;
-                Debug.Log($"[God] 已禁用Monster (通过Tag): {monster.name}");
+                if (monster.activeSelf)
+                {
+                    monster.SetActive(false);
+                    disabledCount++;
+                    Debug.Log($"[God] 已禁用Monster (通过Tag): {monster.name}");
+                }
             }
+        }
+        catch (UnityException ex)
+        {
+            Debug.LogWarning($"[God] Enemy标签未定义，跳过标签查找: {ex.Message}");
         }
         
         Debug.Log($"[God] 总共禁用了 {disabledCount} 个Monster物体");
@@ -132,6 +139,26 @@ public class God : MonoBehaviour
                 enabledCount++;
                 Debug.Log($"[God] 已启用Monster: {enemy.gameObject.name}");
             }
+        }
+        
+        // 安全地通过Tag查找已禁用的Monster（如果Tag存在的话）
+        try
+        {
+            // 注意：FindGameObjectsWithTag不能查找未激活的对象，所以这里主要是为了完整性
+            GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+            foreach (var obj in allObjects)
+            {
+                if (obj.CompareTag("Enemy") && !obj.activeSelf && obj.scene.IsValid())
+                {
+                    obj.SetActive(true);
+                    enabledCount++;
+                    Debug.Log($"[God] 已启用Monster (通过Tag): {obj.name}");
+                }
+            }
+        }
+        catch (UnityException ex)
+        {
+            Debug.LogWarning($"[God] Enemy标签未定义，跳过标签查找: {ex.Message}");
         }
         
         Debug.Log($"[God] 总共启用了 {enabledCount} 个Monster物体");
