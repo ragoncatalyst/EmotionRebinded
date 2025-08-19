@@ -74,7 +74,20 @@ public class Enemy : MonoBehaviour
         if (dist <= detectionRange && dist > stopDistance)
         {
             // 计算移动方向
-            moveDirection = (target.position - transform.position).normalized;
+            Vector2 desiredDirection = (target.position - transform.position).normalized;
+            
+            // 检查移动方向是否可通行
+            Vector3 targetPosition = transform.position + (Vector3)desiredDirection * moveSpeed * Time.deltaTime;
+            
+            if (CanMoveTo(targetPosition))
+            {
+                moveDirection = desiredDirection;
+            }
+            else
+            {
+                // 如果直接路径被阻挡，尝试寻找替代路径
+                moveDirection = FindAlternativeDirection(desiredDirection);
+            }
         }
         else
         {
@@ -120,6 +133,49 @@ public class Enemy : MonoBehaviour
     {
         canMove = state;
         Debug.Log($"[Enemy] {gameObject.name} 移动状态设置为: {(canMove ? "启用" : "禁用")}");
+    }
+    
+    /// <summary>
+    /// 检查是否可以移动到指定位置
+    /// </summary>
+    private bool CanMoveTo(Vector3 targetPosition)
+    {
+        // 如果没有地形系统，允许移动
+        if (TerrainInitialization.Instance == null)
+        {
+            return true;
+        }
+        
+        // 检查目标位置是否可通行
+        return TerrainInitialization.Instance.IsWalkable(targetPosition);
+    }
+    
+    /// <summary>
+    /// 寻找替代移动方向（简单的避障逻辑）
+    /// </summary>
+    private Vector2 FindAlternativeDirection(Vector2 desiredDirection)
+    {
+        // 尝试几个替代方向
+        Vector2[] alternativeDirections = {
+            new Vector2(desiredDirection.x, 0).normalized,  // 只水平移动
+            new Vector2(0, desiredDirection.y).normalized,  // 只垂直移动
+            new Vector2(desiredDirection.x + 0.5f, desiredDirection.y).normalized,  // 稍微偏右
+            new Vector2(desiredDirection.x - 0.5f, desiredDirection.y).normalized,  // 稍微偏左
+            new Vector2(desiredDirection.x, desiredDirection.y + 0.5f).normalized,  // 稍微偏上
+            new Vector2(desiredDirection.x, desiredDirection.y - 0.5f).normalized   // 稍微偏下
+        };
+        
+        foreach (var altDir in alternativeDirections)
+        {
+            Vector3 altTargetPos = transform.position + (Vector3)altDir * moveSpeed * Time.deltaTime;
+            if (CanMoveTo(altTargetPos))
+            {
+                return altDir;
+            }
+        }
+        
+        // 如果所有方向都被阻挡，停止移动
+        return Vector2.zero;
     }
 
     /// <summary>
