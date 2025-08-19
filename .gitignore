@@ -7,7 +7,9 @@
 [Ll]ogs/
 [Mm]emoryCaptures/
 UserSettings/
-
+.vs/
+Temp/
+Logs/
 # Asset Store tools
 Assets/AssetStoreTools*
 
@@ -30,6 +32,8 @@ ExportedObj/
 *.mdb
 *.opendb
 *.VC.db
+
+.vsconfig
 
 # Crashlytics
 crashlytics-build.properties
