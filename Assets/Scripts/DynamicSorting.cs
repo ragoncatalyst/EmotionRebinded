@@ -25,8 +25,8 @@ public class DynamicSorting : MonoBehaviour
     [SerializeField] private bool updateEveryFrame = true;    // 是否每帧更新
     
     [Header("排序层级限制")]
-    [SerializeField] private int minSortingOrder = -1500;     // 最小排序层级（大幅扩大安全范围）
-    [SerializeField] private int maxSortingOrder = 1500;      // 最大排序层级（大幅扩大安全范围）
+    [SerializeField] private int minSortingOrder = -30000;    // 最小排序层级（但仍高于地面-32768）
+    [SerializeField] private int maxSortingOrder = 32767;     // 最大排序层级（最大可能值）
     
     [Header("参考位置配置")]
     [SerializeField] private Vector2 sortingOffset = new Vector2(0f, -0.5f); // 排序计算的偏移量（默认向下偏移到脚部）
@@ -332,11 +332,11 @@ public class DynamicSorting : MonoBehaviour
     {
         Debug.Log($"[DynamicSorting] 修复Player高Y坐标消失问题...");
         
-        // 设置更安全的参数，大幅扩大安全范围
+        // 设置绝对安全的参数，确保永远不会被地面遮挡
         baseSortingOrder = 100;   // 保持正常基础层级
         sortingPrecision = 10f;   // 保持正常精度
-        minSortingOrder = -1500;  // 大幅扩大安全范围，防止消失
-        maxSortingOrder = 1500;   // 大幅扩大安全范围
+        minSortingOrder = -30000; // 绝对安全范围，但仍高于地面-32768
+        maxSortingOrder = 32767;  // 最大可能值
         sortingOffset = new Vector2(0f, 0f);
         
         UpdateSortingOrder();
@@ -350,7 +350,39 @@ public class DynamicSorting : MonoBehaviour
         Debug.Log($"[DynamicSorting] 基础层级: {baseSortingOrder}");
         Debug.Log($"[DynamicSorting] 计算层级: {calculatedOrder}");
         Debug.Log($"[DynamicSorting] 最终层级: {finalOrder}");
-        Debug.Log($"[DynamicSorting] 现在Player在Y>2时不会消失了！");
+        Debug.Log($"[DynamicSorting] 现在Player在任何Y坐标都不会消失了！");
+    }
+    
+    /// <summary>
+    /// 测试极端Y坐标情况
+    /// </summary>
+    [ContextMenu("🧪 测试极端Y坐标")]
+    public void TestExtremeYCoordinates()
+    {
+        Debug.Log($"[DynamicSorting] === 极端Y坐标测试 ===");
+        
+        float[] testYValues = { 11f, 20f, 50f, 100f, -20f, -50f };
+        
+        foreach (float testY in testYValues)
+        {
+            // 模拟计算
+            int calculatedOrder = baseSortingOrder - Mathf.RoundToInt(testY * sortingPrecision);
+            int finalOrder = Mathf.Clamp(calculatedOrder, minSortingOrder, maxSortingOrder);
+            
+            Debug.Log($"[DynamicSorting] Y={testY:F1}: 计算层级={calculatedOrder}, 最终层级={finalOrder}");
+            Debug.Log($"[DynamicSorting]   vs 草地(-32768): 差距={finalOrder - (-32768)}");
+            Debug.Log($"[DynamicSorting]   vs 水域(-32767): 差距={finalOrder - (-32767)}");
+        }
+        
+        Debug.Log($"[DynamicSorting] === 当前实际状态 ===");
+        Vector3 currentPos = transform.position;
+        int currentCalculated = baseSortingOrder - Mathf.RoundToInt(currentPos.y * sortingPrecision);
+        int currentFinal = Mathf.Clamp(currentCalculated, minSortingOrder, maxSortingOrder);
+        
+        Debug.Log($"[DynamicSorting] 当前Y={currentPos.y:F2}: 层级={currentFinal}");
+        Debug.Log($"[DynamicSorting] 草地层级: -32768");
+        Debug.Log($"[DynamicSorting] 水域层级: -32767");
+        Debug.Log($"[DynamicSorting] 安全差距: {currentFinal - (-32768)} (应该 > 0)");
     }
     
     /// <summary>

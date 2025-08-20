@@ -283,6 +283,18 @@ namespace MyGame.Environment
                 }
             }
         }
+
+        private void OnTriggerExit2D(Collider2D other)
+        {
+            // 玩家或敌人离开时也触发一次强化摇摆
+            bool isPlayer = ((1 << other.gameObject.layer) & playerLayer) != 0;
+            bool isEnemy  = ((1 << other.gameObject.layer) & enemyLayer) != 0;
+            if (isPlayer || isEnemy)
+            {
+                TriggerSway();
+                Debug.Log($"[Bush] {gameObject.name} 结束碰撞于 {other.gameObject.name}，再次触发摇摆");
+            }
+        }
         
         /// <summary>
         /// 触发摇摆效果
