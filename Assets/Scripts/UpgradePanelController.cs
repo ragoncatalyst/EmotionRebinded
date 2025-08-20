@@ -425,6 +425,10 @@ public class UpgradePanelController : MonoBehaviour
 
         // ⭐ 禁用选择按钮的键盘输入
         NineSelectionButtons.DisableAllKeyboardInput();
+
+        // ⭐ 恢复摄像机拉远
+        var camFollow = Camera.main != null ? Camera.main.GetComponent<CameraFollowing>() : null;
+        if (camFollow != null) camFollow.EndLevelUpZoom();
     }
 
     private IEnumerator AnimateCharacterIn()
