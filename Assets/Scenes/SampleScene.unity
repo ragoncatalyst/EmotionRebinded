@@ -38,7 +38,6 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -2476,6 +2475,10 @@ MonoBehaviour:
   offsetMultiplier: {x: 1, y: 1, z: 1}
   lookAheadDistance: 1
   lookAheadSmoothTime: 0.2
+  enableZoomOnLevelUp: 1
+  zoomInMultiplier: 0.5
+  zoomSmoothTime: 0.08
+  holdZoomSeconds: 0.1
 --- !u!224 &523656343 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 3248702214228896181, guid: d7af09651fee84d978c57d6b49220fe8, type: 3}
@@ -2640,6 +2643,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc4192abcefc8407cbaf9b896a233e6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  skillPool:
+  - 01
+  - 02
+  - 03
+  - 04
   panelRoot: {fileID: 1491132299}
   characterImage: {fileID: 582382557}
   characterTargetPos: {fileID: 582382556}

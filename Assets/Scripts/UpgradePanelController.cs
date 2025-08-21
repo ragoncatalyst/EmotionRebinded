@@ -7,6 +7,8 @@ using TMPro;
 
 public class UpgradePanelController : MonoBehaviour
 {
+    [Header("技能卡池（Inspector 可编辑）")]
+    public string[] skillPool; // 从此卡池随机抽取三个不同技能编号
     [System.Serializable]
     public class ChoiceOption
     {
@@ -115,9 +117,9 @@ public class UpgradePanelController : MonoBehaviour
             Debug.LogWarning("[UpgradePanelController] closeButton 为空");
         }
 
-        // 设置三个选项对应的技能编号：01、02、04
-        string[] skillIds = { "01", "02", "04" };
-        
+        // 设置三个选项对应的技能编号：改为从卡池随机抽取
+        string[] skillIds = GetRandomSkillsFromPool(3);
+
         for (int i = 0; i < options.Length && i < skillIds.Length; i++)
         {
             if (options[i].button != null)
@@ -169,6 +171,46 @@ public class UpgradePanelController : MonoBehaviour
         {
             Debug.Log($"[UpgradePanelController] 升级动画已配置: {upgradeAnimator.name}, 触发器: {upgradeAnimationTrigger}");
         }
+    }
+
+    // 从卡池随机抽取count个不重复的技能编号；若卡池不足则重复允许
+    private string[] GetRandomSkillsFromPool(int count)
+    {
+        string[] fallback = new string[] {"01","02","04"};
+        if (skillPool == null || skillPool.Length == 0)
+        {
+            Debug.LogWarning("[UpgradePanelController] skillPool 为空，使用默认 {01,02,04}");
+            return fallback;
+        }
+        System.Collections.Generic.List<string> pool = new System.Collections.Generic.List<string>();
+        foreach (var s in skillPool)
+        {
+            if (!string.IsNullOrWhiteSpace(s)) pool.Add(s.Trim());
+        }
+        if (pool.Count == 0) return fallback;
+
+        System.Collections.Generic.List<string> result = new System.Collections.Generic.List<string>();
+        System.Random rnd = new System.Random();
+        if (pool.Count >= count)
+        {
+            // 不重复抽取
+            for (int i = 0; i < count; i++)
+            {
+                int idx = rnd.Next(pool.Count);
+                result.Add(pool[idx]);
+                pool.RemoveAt(idx);
+            }
+        }
+        else
+        {
+            // 池子不足，允许重复
+            for (int i = 0; i < count; i++)
+            {
+                int idx = rnd.Next(pool.Count);
+                result.Add(pool[idx]);
+            }
+        }
+        return result.ToArray();
     }
 
     /// <summary>
@@ -281,6 +323,9 @@ public class UpgradePanelController : MonoBehaviour
         Debug.Log("[UpgradePanelController] 正在激活面板...");
         panelRoot.SetActive(true);
         isPanelOpen = true;
+
+        // 每次打开面板时，重新从卡池抽取本次的三个技能，并刷新按钮与文字
+        AssignRandomOptionsFromPool();
 
         // 检查面板内的子对象状态
         Debug.Log($"[UpgradePanelController] 面板子对象数量: {panelRoot.transform.childCount}");
@@ -398,6 +443,44 @@ public class UpgradePanelController : MonoBehaviour
 
         // 启动协调的动画序列：立绘先进入，在快结束时选项开始出现
         StartCoroutine(CoordinatedEnterAnimation());
+    }
+
+    // 每次打开面板时调用：根据卡池为三个选项分配技能、绑定点击、刷新文字
+    private void AssignRandomOptionsFromPool()
+    {
+        if (options == null || options.Length == 0) return;
+
+        string[] skillIds = GetRandomSkillsFromPool(Mathf.Min(3, options.Length));
+        for (int i = 0; i < options.Length && i < skillIds.Length; i++)
+        {
+            var opt = options[i];
+            if (opt == null || opt.button == null) continue;
+
+            // 设置技能编号
+            opt.skillId = skillIds[i];
+
+            // 闭包局部变量
+            string currentSkillId = skillIds[i];
+            int currentIndex = i;
+
+            // 重绑监听器
+            opt.button.onClick.RemoveAllListeners();
+            opt.button.onClick.AddListener(() => {
+                Debug.Log($"[UpgradePanelController] 选项 {currentIndex} 被点击，技能编号: {currentSkillId}");
+                Button clickedButton = options[currentIndex].button;
+                if (clickedButton != null)
+                {
+                    StartCoroutine(ButtonClickEffect(clickedButton));
+                }
+                OnChoiceSelected(currentSkillId);
+            });
+
+            // 刷新显示文字
+            if (opt.skillIdLabel != null)
+            {
+                opt.skillIdLabel.text = currentSkillId;
+            }
+        }
     }
 
     public void ClosePanel()
