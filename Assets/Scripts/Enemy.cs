@@ -45,6 +45,8 @@ public class Enemy : MonoBehaviour
     private bool canMove = true;               // Can move
     private Vector2 moveDirection;             // Move dir
     private bool isDying = false;
+    public bool IsDying => isDying;
+    public bool IsTargetable { get; private set; } = true;
     
     // Targeting / wander support
     [SerializeField] private float retargetInterval = 3f; // interval to re-acquire cached Player reference
@@ -95,6 +97,7 @@ public class Enemy : MonoBehaviour
         transform.position = pos;
 
         if (currentHealth > maxHealth) currentHealth = maxHealth;
+        IsTargetable = true;
         SetupHealthBar();
         if (enableShadow) SetupShadow(); else CleanupShadow();
     }
@@ -199,6 +202,8 @@ public class Enemy : MonoBehaviour
         UpdateHealthBar();
         if (currentHealth <= 0f)
         {
+            IsTargetable = false; // stop being a valid target immediately
+            if (enemyCol != null) enemyCol.enabled = false; // avoid blocking bullets
             StartCoroutine(DeathBlinkAndDestroy());
         }
     }
@@ -235,6 +240,7 @@ public class Enemy : MonoBehaviour
         isDying = true;
         canMove = false;
         if (rb2d) rb2d.velocity = Vector2.zero;
+        if (enemyCol != null) enemyCol.enabled = false;
         float total = deathBlinkDuration;
         float step = total / Mathf.Max(1, deathBlinkCount * 2); // on+off pairs
         float elapsed = 0f;

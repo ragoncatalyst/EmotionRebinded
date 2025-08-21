@@ -61,6 +61,10 @@ namespace MyGame.UI
         private bool isPressed = false;
         private Color originalIconColor;          // 保存图标的原始颜色
 
+        // 预输入：在CD最后0.5秒内允许采集输入但延后执行
+        private bool queuedInput = false;
+        private float queuedAtTime = 0f;
+
         public System.Action<NineButtons> OnSkillChanged;
 
         // ===== 键盘抑制：用于面板关闭后的按键仍保持按下时，直到松开才允许再次生效 =====
@@ -145,7 +149,8 @@ namespace MyGame.UI
             if (shouldListenKeyboard)
             {
                 // 检查按键状态来应用tinted效果
-                bool currentPressed = Input.GetKey(keyBind);
+                bool isCurrentlyCooling = isOnCooldown; // 快速缓存
+                bool currentPressed = Input.GetKey(keyBind) && !isCurrentlyCooling; // 冷却中不触发按下视觉
                 if (currentPressed != isPressed)
                 {
                     isPressed = currentPressed;
@@ -168,7 +173,7 @@ namespace MyGame.UI
                     if (Input.GetKeyDown(keyBind))
                     {
                         Debug.Log($"[NineButtons] {gameObject.name} 非移动技能按下: {keyBind}");
-                        Press();
+                        TryPressOrQueue();
                     }
                 }
             }
@@ -203,7 +208,33 @@ namespace MyGame.UI
                             cooldownFill.color = readyCooldownFillColor; // 恢复浅绿色CD圈
                         }
                     }
+                    // 冷却期间不允许出现按下视觉，确保释放
+                    if (isPressed)
+                    {
+                        isPressed = false;
+                        ApplyPressedEffect(false);
+                    }
 
+                    // 冷却结束后，若有排队输入则立即执行，并给出点击反馈
+                    if (queuedInput)
+                    {
+                        queuedInput = false;
+                        StartCoroutine(MouseClickTintEffect());
+                        ExecuteSkill();
+                        if (cooldownSeconds > 0) StartCooldown();
+                    }
+                }
+                else
+                {
+                    // 冷却最后0.5秒内允许采集输入（无反馈，延后执行）
+                    if (!queuedInput && cooldownTimer <= 0.5f && shouldListenKeyboard && !IsMovementSkill(skillId))
+                    {
+                        if (Input.GetKeyDown(keyBind))
+                        {
+                            queuedInput = true;
+                            queuedAtTime = Time.time;
+                        }
+                    }
                 }
             }
         }
@@ -223,6 +254,22 @@ namespace MyGame.UI
             // 开始冷却
             if (cooldownSeconds > 0)
                 StartCooldown();
+        }
+
+        private void TryPressOrQueue()
+        {
+            // 冷却中：若进入最后0.5秒则只记录，不执行也不反馈
+            if (isOnCooldown)
+            {
+                if (!queuedInput && cooldownTimer <= 0.5f)
+                {
+                    queuedInput = true;
+                    queuedAtTime = Time.time;
+                }
+                return;
+            }
+            // 非冷却，立即执行
+            Press();
         }
 
         /// <summary>

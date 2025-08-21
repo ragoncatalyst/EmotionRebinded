@@ -20,6 +20,7 @@ public class UpgradePanelController : MonoBehaviour
         public Vector2 targetAnchoredPos;       // 选项的目标位置
         public float rightOffset = 600f;       // 从右往左滑入的起始偏移
         public AnimationCurve accelCurve;       // 选项滑入的变速度曲线
+        [HideInInspector] public Color originalButtonColor;
     }
 
     [Header("面板架构 - 基本组件")]
@@ -400,7 +401,7 @@ public class UpgradePanelController : MonoBehaviour
             }
         }
 
-        // 先将所有选项设置到屏幕外，避免闪现
+        // 先将所有选项设置到屏幕外，避免闪现，并记录初始颜色
         foreach (var opt in options)
         {
             if (opt.rect != null)
@@ -412,6 +413,14 @@ public class UpgradePanelController : MonoBehaviour
                 // 然后激活选项
                 opt.rect.gameObject.SetActive(true);
                 Debug.Log($"[UpgradePanelController] 选项 {System.Array.IndexOf(options, opt)} 预设到屏幕外位置: {hiddenPos}");
+
+                // 记录并设置按钮初始颜色（确保不透明）
+                var img = opt.rect.GetComponent<Image>();
+                if (img != null)
+                {
+                    opt.originalButtonColor = img.color;
+                    var c = img.color; c.a = 1f; img.color = c;
+                }
             }
         }
 
@@ -740,6 +749,9 @@ public class UpgradePanelController : MonoBehaviour
     {
         Debug.Log($"[UpgradePanelController] 选择了技能: {skillId}，开始选项滑出流程");
         
+        // 先恢复所有按钮颜色，避免等待协程被打断后颜色残留为变暗
+        RestoreAllOptionButtonColors();
+
         // 停止所有正在进行的协程，确保没有冲突
         StopAllCoroutines();
         
@@ -1072,8 +1084,28 @@ public class UpgradePanelController : MonoBehaviour
         
         // 恢复原始颜色
         buttonImage.color = originalColor;
+        RestoreAllOptionButtonColors();
         
         Debug.Log("[UpgradePanelController] 按钮tinted效果已应用");
+    }
+
+    private void RestoreAllOptionButtonColors()
+    {
+        if (options == null) return;
+        foreach (var opt in options)
+        {
+            if (opt == null || opt.rect == null) continue;
+            var img = opt.rect.GetComponent<Image>();
+            if (img != null)
+            {
+                var target = opt.originalButtonColor;
+                if (target == default(Color))
+                {
+                    target = img.color; var c = target; c.a = 1f; target = c;
+                }
+                img.color = target;
+            }
+        }
     }
 
     /// <summary>

@@ -79,6 +79,7 @@ public class HomingBullet : MonoBehaviour
         foreach (var e in enemies)
         {
             if (e == null || !e.gameObject.activeInHierarchy) continue;
+            if (!e.IsTargetable) continue; // ignore dying/blinking bodies
             float d = (e.transform.position - p).sqrMagnitude;
             if (d < best)
             {
