@@ -34,7 +34,7 @@ public static class SkillDatabase
 
         skillDict.Clear();
         
-        // 使用硬编码的技能数据（基于Skills.txt内容）
+        // 使用硬编码的技能数据（基于 Skills.txt 内容）
         LoadDefaultSkills();
 
         isLoaded = true;
@@ -46,11 +46,15 @@ public static class SkillDatabase
     /// </summary>
     private static void LoadDefaultSkills()
     {
-        skillDict["00"] = new SkillInfo("00", "未绑定", "", 0, "未绑定技能");
-        skillDict["01"] = new SkillInfo("01", "移动-上", "xyinput", 0, "向上方移动");
-        skillDict["02"] = new SkillInfo("02", "移动-左", "xyinput", 0, "向左侧移动");
-        skillDict["03"] = new SkillInfo("03", "移动-下", "xyinput", 0, "向下方移动");
-        skillDict["04"] = new SkillInfo("04", "移动-右", "xyinput", 0, "向右侧移动");
+        skillDict["00"] = new SkillInfo("00", "Unbound", "", 0, "No skill bound");
+        skillDict["01"] = new SkillInfo("01", "Move Up", "xyinput", 0, "Move upward");
+        skillDict["02"] = new SkillInfo("02", "Move Left", "xyinput", 0, "Move left");
+        skillDict["03"] = new SkillInfo("03", "Move Down", "xyinput", 0, "Move downward");
+        skillDict["04"] = new SkillInfo("04", "Move Right", "xyinput", 0, "Move right");
+        // All new attack skills use a 2.0s cooldown (as requested)
+        skillDict["05"] = new SkillInfo("05", "Homing Bullet", "skill05_homing", 2.0f, "Fire a homing bullet at the nearest enemy");
+        skillDict["06"] = new SkillInfo("06", "Piercing Shot", "skill06_pierce", 2.0f, "Shoot a fast piercing bolt through enemies");
+        skillDict["07"] = new SkillInfo("07", "Nova Blast", "skill07_nova", 2.0f, "Emit a short-range radial blast around the player");
     }
 
     /// <summary>
@@ -63,8 +67,8 @@ public static class SkillDatabase
         if (skillDict.TryGetValue(skillId, out SkillInfo skill))
             return skill;
         
-        // 返回默认未知技能
-        return new SkillInfo(skillId, "未知技能", "", 0, $"未知技能ID: {skillId}");
+        // Return default unknown skill (English)
+        return new SkillInfo(skillId, "Unknown Skill", "", 0, $"Unknown skill ID: {skillId}");
     }
 
     /// <summary>
@@ -74,5 +78,19 @@ public static class SkillDatabase
     {
         if (!isLoaded) LoadSkillDatabase();
         return skillDict.ContainsKey(skillId);
+    }
+
+    /// <summary>
+    /// 获取所有技能ID
+    /// </summary>
+    public static System.Collections.Generic.List<string> GetAllSkillIds(bool excludeUnbound = true)
+    {
+        if (!isLoaded) LoadSkillDatabase();
+        var list = new System.Collections.Generic.List<string>(skillDict.Keys);
+        if (excludeUnbound)
+        {
+            list.Remove("00");
+        }
+        return list;
     }
 }

@@ -11,6 +11,17 @@ public class PlayerController : MonoBehaviour
     // 组件引用
     private Rigidbody2D rb2d;
     private BoxCollider2D playerCollider;
+    private SpriteRenderer spriteRenderer;
+    private SpriteRenderer shadowRenderer;
+
+    [Header("Shadow")]
+    public bool enableShadow = false;
+    public Vector3 shadowOffset = new Vector3(0f, -0.1f, 0f);
+    public Vector3 shadowScale = new Vector3(1f, 0.5f, 1f);
+    public Color shadowColor = new Color(0f, 0f, 0f, 0.35f);
+    public int shadowOrderOffset = -1;
+    public bool placeShadowAtSpriteBottom = true;
+    public float shadowWorldYOffset = -0.02f;
     
     // 移除了重复的键盘输入处理逻辑，现在由NineButtons.cs直接处理
     // 移除了battleButtons数组，避免功能重复
@@ -20,11 +31,43 @@ public class PlayerController : MonoBehaviour
         // 获取物理组件
         rb2d = GetComponent<Rigidbody2D>();
         playerCollider = GetComponent<BoxCollider2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
         
         // 配置物理组件以避免与Tilemap碰撞冲突
         ConfigurePhysicsComponents();
+        if (enableShadow) SetupShadow(); else CleanupShadow();
         
         Debug.Log($"[PlayerController] 玩家初始化完成，位置: {transform.position}, 使用物理移动: {usePhysicsMovement}");
+    }
+
+    private void LateUpdate()
+    {
+        // Keep shadow stuck to sprite bottom
+        if (!enableShadow || shadowRenderer == null || spriteRenderer == null) return;
+        if (placeShadowAtSpriteBottom)
+        {
+            float bottom = spriteRenderer.bounds.min.y + shadowWorldYOffset;
+            var p = shadowRenderer.transform.position;
+            p.x = transform.position.x;
+            p.y = bottom;
+            p.z = transform.position.z;
+            shadowRenderer.transform.position = p;
+            shadowRenderer.transform.localScale = shadowScale;
+        }
+        else
+        {
+            shadowRenderer.transform.localPosition = shadowOffset;
+            shadowRenderer.transform.localScale = shadowScale;
+        }
+        shadowRenderer.color = shadowColor;
+        shadowRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+        shadowRenderer.sortingOrder = spriteRenderer.sortingOrder + shadowOrderOffset;
+    }
+
+    private void CleanupShadow()
+    {
+        Transform child = transform.Find("Shadow");
+        if (child != null) Destroy(child.gameObject);
     }
     
     /// <summary>
@@ -69,6 +112,26 @@ public class PlayerController : MonoBehaviour
             Debug.Log("[PlayerController] 玩家碰撞体设置为触发器");
         }
     }
+
+    private void SetupShadow()
+    {
+        if (!enableShadow) return;
+        if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null) return;
+        if (shadowRenderer == null)
+        {
+            GameObject s = new GameObject("Shadow");
+            s.transform.SetParent(transform);
+            s.transform.localPosition = shadowOffset;
+            s.transform.localScale = shadowScale;
+            shadowRenderer = s.AddComponent<SpriteRenderer>();
+        }
+        shadowRenderer.sprite = spriteRenderer.sprite;
+        shadowRenderer.color = shadowColor;
+        shadowRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+        shadowRenderer.sortingOrder = spriteRenderer.sortingOrder + shadowOrderOffset;
+        shadowRenderer.enabled = enableShadow;
+    }
     
     /// <summary>
     /// 判断是否为移动技能
@@ -92,8 +155,99 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            Debug.Log($"[技能{skillId}] 未知技能或未绑定");
+            switch (skillId)
+            {
+                case "05":
+                    CastHomingBullet();
+                    break;
+                case "06":
+                    CastPiercingShot();
+                    break;
+                case "07":
+                    CastNovaBlast();
+                    break;
+                default:
+                    Debug.Log($"[技能{skillId}] 未知技能或未绑定");
+                    break;
+            }
         }
+    }
+
+    [Header("Skill Prefabs")]
+    public GameObject homingBulletPrefab;
+    public GameObject piercingShotPrefab;
+
+    private void CastHomingBullet()
+    {
+        if (homingBulletPrefab == null)
+        {
+            Debug.LogWarning("[PlayerController] Homing bullet prefab not assigned.");
+            return;
+        }
+        var go = Instantiate(homingBulletPrefab, transform.position, Quaternion.identity);
+        // face right initially; HomingBullet will steer towards target
+        go.transform.right = Vector3.right;
+    }
+
+    private void CastPiercingShot()
+    {
+        // Simple fast projectile straight to nearest enemy direction, pierces without destroying on hit
+        Vector3 dir = Vector3.right; // default
+        Enemy nearest = FindNearestEnemy();
+        if (nearest != null)
+        {
+            dir = (nearest.transform.position - transform.position).normalized;
+        }
+        if (piercingShotPrefab != null)
+        {
+            var go = Instantiate(piercingShotPrefab, transform.position, Quaternion.identity);
+            go.transform.right = dir;
+        }
+        else if (homingBulletPrefab != null)
+        {
+            // fallback: reuse homing bullet with no destroy on hit and higher speed
+            var go = Instantiate(homingBulletPrefab, transform.position, Quaternion.identity);
+            var hb = go.GetComponent<HomingBullet>();
+            if (hb != null)
+            {
+                hb.destroyOnHit = false;
+                hb.startSpeed = 14f;
+                hb.minSpeed = 14f;
+                hb.rotateTowardsFactor = 0f; // straight
+            }
+            go.transform.right = dir;
+        }
+    }
+
+    private void CastNovaBlast()
+    {
+        // Simple close-range radial damage: overlap circle
+        float radius = 1.6f;
+        float damage = 4f;
+        var hits = Physics2D.OverlapCircleAll(transform.position, radius);
+        foreach (var h in hits)
+        {
+            var e = h.GetComponent<Enemy>();
+            if (e != null)
+            {
+                e.TakeDamage(damage);
+            }
+        }
+        // could add a VFX prefab here
+    }
+
+    private Enemy FindNearestEnemy()
+    {
+        Enemy[] enemies = FindObjectsOfType<Enemy>();
+        float best = float.PositiveInfinity;
+        Enemy bestE = null;
+        foreach (var e in enemies)
+        {
+            if (e == null || !e.gameObject.activeInHierarchy) continue;
+            float d = (e.transform.position - transform.position).sqrMagnitude;
+            if (d < best) { best = d; bestE = e; }
+        }
+        return bestE;
     }
 
     /// <summary>

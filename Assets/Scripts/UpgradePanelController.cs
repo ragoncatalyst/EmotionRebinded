@@ -76,6 +76,7 @@ public class UpgradePanelController : MonoBehaviour
     public float panelShowDelay = 0.5f;             // 动画结束后到面板显示的延迟时间（秒，可在Inspector中编辑）
 
     private bool isPanelOpen;
+    private bool isChoosingOptions = false; // true when option buttons are visible
 
     void Start()
     {
@@ -151,7 +152,8 @@ public class UpgradePanelController : MonoBehaviour
                 // 更新显示的技能编号文字
                 if (options[i].skillIdLabel != null) 
                 {
-                    options[i].skillIdLabel.text = currentSkillId;
+                    var info = SkillDatabase.GetSkillInfo(currentSkillId);
+                    options[i].skillIdLabel.text = info != null ? info.name : currentSkillId;
                 }
                 
                 Debug.Log($"[UpgradePanelController] 选项 {i} 设置为技能编号: {currentSkillId}");
@@ -173,21 +175,70 @@ public class UpgradePanelController : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (!isPanelOpen || !isChoosingOptions) return;
+        // 仅在选项按钮激活时触发对应索引，避免多按钮竞争
+        if (options != null && options.Length >= 3)
+        {
+            if (options[0]?.button != null && options[0].button.gameObject.activeInHierarchy)
+            {
+                if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.E))
+                {
+                    TriggerOptionByIndex(0);
+                    return;
+                }
+            }
+            if (options[1]?.button != null && options[1].button.gameObject.activeInHierarchy)
+            {
+                if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.D))
+                {
+                    TriggerOptionByIndex(1);
+                    return;
+                }
+            }
+            if (options[2]?.button != null && options[2].button.gameObject.activeInHierarchy)
+            {
+                if (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.X) || Input.GetKeyDown(KeyCode.C))
+                {
+                    TriggerOptionByIndex(2);
+                    return;
+                }
+            }
+        }
+    }
+
+    private void TriggerOptionByIndex(int idx)
+    {
+        if (options == null || idx < 0 || idx >= options.Length) return;
+        var opt = options[idx];
+        if (opt != null && opt.button != null && opt.button.gameObject.activeInHierarchy)
+        {
+            opt.button.onClick.Invoke();
+        }
+    }
+
     // 从卡池随机抽取count个不重复的技能编号；若卡池不足则重复允许
     private string[] GetRandomSkillsFromPool(int count)
     {
-        string[] fallback = new string[] {"01","02","04"};
-        if (skillPool == null || skillPool.Length == 0)
-        {
-            Debug.LogWarning("[UpgradePanelController] skillPool 为空，使用默认 {01,02,04}");
-            return fallback;
-        }
+        // 构建卡池：优先使用 Inspector 自定义；若为空，则从数据库拉取所有技能（排除00）
         System.Collections.Generic.List<string> pool = new System.Collections.Generic.List<string>();
-        foreach (var s in skillPool)
+        if (skillPool != null && skillPool.Length > 0)
         {
-            if (!string.IsNullOrWhiteSpace(s)) pool.Add(s.Trim());
+            foreach (var s in skillPool)
+            {
+                if (!string.IsNullOrWhiteSpace(s)) pool.Add(s.Trim());
+            }
         }
-        if (pool.Count == 0) return fallback;
+        if (pool.Count == 0)
+        {
+            pool = SkillDatabase.GetAllSkillIds(true); // include 05/06/07 自动加入
+            if (pool.Count == 0)
+            {
+                // 极端兜底
+                pool.AddRange(new string[]{"01","02","03","04","05","06","07"});
+            }
+        }
 
         System.Collections.Generic.List<string> result = new System.Collections.Generic.List<string>();
         System.Random rnd = new System.Random();
@@ -326,6 +377,7 @@ public class UpgradePanelController : MonoBehaviour
 
         // 每次打开面板时，重新从卡池抽取本次的三个技能，并刷新按钮与文字
         AssignRandomOptionsFromPool();
+        isChoosingOptions = true;
 
         // 检查面板内的子对象状态
         Debug.Log($"[UpgradePanelController] 面板子对象数量: {panelRoot.transform.childCount}");
@@ -478,7 +530,8 @@ public class UpgradePanelController : MonoBehaviour
             // 刷新显示文字
             if (opt.skillIdLabel != null)
             {
-                opt.skillIdLabel.text = currentSkillId;
+                var info = SkillDatabase.GetSkillInfo(currentSkillId);
+                opt.skillIdLabel.text = info != null ? info.name : currentSkillId;
             }
         }
     }
@@ -857,6 +910,9 @@ public class UpgradePanelController : MonoBehaviour
 
         // 等待滑出动画完成
         yield return new WaitForSeconds(optionSlideOutDuration);
+
+        // 选项阶段结束
+        isChoosingOptions = false;
 
         // 隐藏所有选项
         foreach (var opt in options)

@@ -14,6 +14,7 @@ public class NineSelectionButtons : MonoBehaviour
     public TextMeshProUGUI keyBindLabel;     // 显示键盘按键（如Q, W, E）
     public TextMeshProUGUI skillIdLabel;     // 显示当前绑定的技能编号
     public Button selectionButton;           // 选择按钮组件
+    public TextMeshProUGUI confirmLabel;     // 第一次点击后显示的确认提示（初始隐藏）
 
     [Header("自动匹配配置")]
     [SerializeField] private bool autoMatchByPosition = true;  // 是否通过位置自动匹配
@@ -32,11 +33,19 @@ public class NineSelectionButtons : MonoBehaviour
     [Header("调试信息")]
     [SerializeField] private bool isMatched = false;               // 是否已匹配成功
 
+    [Header("确认交互")]
+    [SerializeField] private bool awaitingConfirm = false;         // 是否处于确认状态
+    [SerializeField] private float scaleUpFactor = 1.05f;          // 放大比例
+    [SerializeField] private float scaleAnimTime = 0.08f;          // 放大动画时长
+
     private void Start()
     {
         // 自动获取组件引用
         if (selectionButton == null)
             selectionButton = GetComponent<Button>();
+
+        if (confirmLabel != null)
+            confirmLabel.gameObject.SetActive(false);
 
         // 尝试自动匹配对应的战斗按钮
         if (correspondingBattleButton == null)
@@ -78,11 +87,10 @@ public class NineSelectionButtons : MonoBehaviour
         if (upgradePanel == null || !IsPanelOpen(upgradePanel))
             return;
 
-        // 检测对应的键盘按键
+        // 仅触发自身绑定的键（避免同一行多个按钮同时响应导致“最右侧覆盖”）
         KeyCode targetKey = correspondingBattleButton.keyBind;
         if (targetKey != KeyCode.None && Input.GetKeyDown(targetKey))
         {
-            Debug.Log($"[NineSelectionButtons] 检测到键盘输入 {targetKey}，触发选择按钮 {gameObject.name}");
             OnSelectionButtonClicked();
         }
     }
@@ -379,6 +387,15 @@ public class NineSelectionButtons : MonoBehaviour
             return;
         }
 
+        // 双击确认：如果已有技能且未确认，先提示并返回；再次点击才真正绑定
+        bool alreadyBound = !string.IsNullOrEmpty(correspondingBattleButton.skillId) && correspondingBattleButton.skillId != "00";
+        if (alreadyBound && !awaitingConfirm)
+        {
+            awaitingConfirm = true;
+            ShowConfirmUI(true);
+            return;
+        }
+
         // 将技能绑定到对应的战斗按钮
         correspondingBattleButton.SetSkill(selectedSkillId, correspondingBattleButton.keyBind);
         Debug.Log($"[NineSelectionButtons] 技能 {selectedSkillId} 已绑定到位置 {displayPosition}");
@@ -393,7 +410,14 @@ public class NineSelectionButtons : MonoBehaviour
         SlotOccupancyIndicator.UpdateAllSlotIndicators();
 
         // 关闭升级面板
+        // 抑制刚刚用来选择的按键，直到玩家松开该键，避免瞬间触发战斗场景技能
+        if (correspondingBattleButton != null)
+        {
+            NineButtons.SuppressKeyUntilRelease(correspondingBattleButton.keyBind);
+        }
         upgradePanel.ClosePanel();
+        awaitingConfirm = false;
+        ShowConfirmUI(false);
     }
 
     /// <summary>
@@ -413,6 +437,40 @@ public class NineSelectionButtons : MonoBehaviour
             Debug.LogWarning("[NineSelectionButtons] 没有待绑定的技能ID，请先在升级面板选择技能");
             return "";
         }
+    }
+
+    // ===== 确认提示与缩放动画 =====
+    private void ShowConfirmUI(bool show)
+    {
+        if (confirmLabel != null)
+        {
+            confirmLabel.gameObject.SetActive(show);
+        }
+        // 若当前对象处于未激活或组件未启用，直接设置缩放值，避免协程启动报错
+        if (!isActiveAndEnabled)
+        {
+            Transform t0 = selectionButton != null ? selectionButton.transform : transform;
+            t0.localScale = Vector3.one * (show ? scaleUpFactor : 1f);
+            return;
+        }
+        StopAllCoroutines();
+        StartCoroutine(AnimateScale(show ? scaleUpFactor : 1f));
+    }
+
+    private System.Collections.IEnumerator AnimateScale(float target)
+    {
+        Transform t = selectionButton != null ? selectionButton.transform : transform;
+        Vector3 start = t.localScale;
+        Vector3 goal = Vector3.one * target;
+        float t0 = 0f;
+        while (t0 < scaleAnimTime)
+        {
+            t0 += Time.deltaTime;
+            float p = Mathf.Clamp01(t0 / scaleAnimTime);
+            t.localScale = Vector3.Lerp(start, goal, p);
+            yield return null;
+        }
+        t.localScale = goal;
     }
 
     #region Context Menu 调试方法

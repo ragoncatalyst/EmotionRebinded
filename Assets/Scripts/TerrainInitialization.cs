@@ -18,6 +18,9 @@ public enum TerrainType
 /// </summary>
 public class TerrainInitialization : MonoBehaviour
 {
+    // 玩家初始网格坐标（用于限制水域圆心在其30格外）
+    private Vector2Int playerInitialGrid;
+    private bool playerInitialGridSet = false;
     [Header("地形生成配置")]
     [SerializeField] private int mapWidth = 120;          // 地图宽度
     [SerializeField] private int mapHeight = 120;         // 地图高度
@@ -29,6 +32,35 @@ public class TerrainInitialization : MonoBehaviour
     [SerializeField] private int bushMinDistance = 8; // 草丛之间最小距离
     [SerializeField] private int bushRequiredSpace = 4; // 草丛需要的空间大小（4x4）
     [SerializeField] private bool enableBushGeneration = true; // 是否启用草丛生成
+    [SerializeField] private bool spawnInitialBushesOnce = true; // 初始区域是否生成一次草丛
+    private bool initialBushesSpawned = false; // 运行时标记：是否已在初始区域生成过草丛
+
+    // ===== 分块卸载/还原（性能优化）=====
+    [Header("分块卸载（性能优化）")]
+    [SerializeField] private bool enableChunkStreaming = true;
+    [SerializeField] private int chunkSize = 32;              // 每个区块的边长（单位：格）
+    [SerializeField] private int loadRadiusChunks = 4;        // 加载半径（以区块为单位）
+    [SerializeField] private int unloadRadiusChunks = 5;      // 卸载半径（以区块为单位，建议 > 加载半径，形成滞回）
+    [SerializeField] private float chunkCheckInterval = 1.0f; // 检查间隔（秒）
+
+    private float lastChunkStreamCheckTime = 0f;
+    private HashSet<Vector2Int> unloadedChunks = new HashSet<Vector2Int>();
+    private Dictionary<Vector2Int, ChunkSnapshot> chunkSnapshots = new Dictionary<Vector2Int, ChunkSnapshot>();
+
+    [System.Serializable]
+    private class BushSnapshot
+    {
+        public Vector2Int worldGridPos;   // 世界网格坐标
+        public Vector3 localScale;        // 大小
+        public string prefabName;         // 记录原始prefab名（尽力匹配）
+    }
+
+    [System.Serializable]
+    private class ChunkSnapshot
+    {
+        public List<Vector3Int> waterTiles = new List<Vector3Int>();
+        public List<BushSnapshot> bushes = new List<BushSnapshot>();
+    }
     [SerializeField] private int bushNoSpawnRadiusFromPlayer = 25; // 草丛距玩家的最小生成距离（格）
     
     [Header("Tilemap系统")]
@@ -78,6 +110,14 @@ public class TerrainInitialization : MonoBehaviour
     private Vector2Int terrainOffset;                     // 地形偏移量（用于以玩家为中心生成）
     private List<Vector2Int> waterCenters;                // 已生成水域的中心点列表
     private List<Vector2Int> spawnedBushPositions;        // 已生成草丛的位置列表
+    
+    [Header("怪物生成配置")]
+    [SerializeField] private GameObject enemyPrefab;     // 敌人Prefab（带 Enemy 组件）
+    [SerializeField] private int initialEnemyCount = 8;  // 初始生成尝试数量
+    [SerializeField] private float enemySpawnMinDist = 30f; // 与玩家的最小距离（格）
+    [SerializeField] private float enemySpawnMaxDist = 40f; // 与玩家的最大距离（格）
+    [SerializeField] private int enemySpawnRetries = 80;     // 随机尝试次数
+    [SerializeField] private float enemyAvoidBushRadius = 1.5f; // 与灌木最小间隔（世界单位/格）
     
     // 动态扩展相关变量
     private float lastExpansionCheck = 0f;                // 上次检查扩展的时间
@@ -144,6 +184,17 @@ public class TerrainInitialization : MonoBehaviour
                 }
             }
             
+            // 记录玩家初始网格位置（仅一次）
+            if (!playerInitialGridSet)
+            {
+                Vector2 playerWorldPos = playerTransform != null
+                    ? new Vector2(playerTransform.position.x, playerTransform.position.y)
+                    : Vector2.zero;
+                playerInitialGrid = WorldToGrid(playerWorldPos);
+                playerInitialGridSet = true;
+                Debug.Log($"[TerrainInitialization] 记录玩家初始网格位置: {playerInitialGrid}");
+            }
+            
             GenerateTerrain();
         }
         
@@ -162,6 +213,16 @@ public class TerrainInitialization : MonoBehaviour
             {
                 CheckForMapExpansion();
                 lastExpansionCheck = Time.time;
+            }
+        }
+
+        // 分块卸载/还原
+        if (enableChunkStreaming && playerTransform != null)
+        {
+            if (Time.time - lastChunkStreamCheckTime >= chunkCheckInterval)
+            {
+                StreamChunksAroundPlayer();
+                lastChunkStreamCheckTime = Time.time;
             }
         }
     }
@@ -212,12 +273,87 @@ public class TerrainInitialization : MonoBehaviour
         // 确保地面始终在最底层渲染
         EnsureGroundAtBottom();
 
+        // 初始区域生成怪物（在玩家30-40格范围的草地上）
+        TrySpawnInitialEnemies();
+
+        // 初始区域：只刷一次草丛（与扩展密度一致）
+        if (enableBushGeneration && spawnInitialBushesOnce && !initialBushesSpawned)
+        {
+            initialBushesSpawned = true;
+            // 覆盖整张初始地图的草地区域，保证均匀分布
+            GenerateBushesConsistentDensityAcrossInitialMap();
+            if (showDebugInfo) Debug.Log("[TerrainInitialization] 初始区域草丛已生成一次");
+        }
+
         // 初始阶段：不在旧区域生成草丛；草丛只在扩展区域生成
         
         // 重新初始化地图边界（因为可能重新生成了地形）
         InitializeMapBounds();
         
         Debug.Log($"[TerrainInitialization] 地形生成完成！草地: {CountTiles(TerrainType.Grass)}, 水域: {CountTiles(TerrainType.Water)}");
+    }
+
+    private void TrySpawnInitialEnemies()
+    {
+        if (enemyPrefab == null || playerTransform == null) return;
+        int spawned = 0;
+        Vector2Int playerGrid = WorldToGrid(playerTransform.position);
+        System.Random rnd = new System.Random();
+
+        for (int i = 0; i < enemySpawnRetries && spawned < initialEnemyCount; i++)
+        {
+            // 随机极坐标：距离在[min,max]，角度[0,2pi)
+            float dist = Mathf.Lerp(enemySpawnMinDist, enemySpawnMaxDist, (float)rnd.NextDouble());
+            float ang = (float)(rnd.NextDouble() * Mathf.PI * 2);
+            int wx = playerGrid.x + Mathf.RoundToInt(dist * Mathf.Cos(ang));
+            int wy = playerGrid.y + Mathf.RoundToInt(dist * Mathf.Sin(ang));
+            Vector2Int worldCell = new Vector2Int(wx, wy);
+
+            // 只在草地上
+            if (!IsGrassWorldCell(worldCell)) continue;
+
+            // 避免生成在灌木4x4占位中心过近（可选）
+            bool nearBush = false;
+            foreach (var b in spawnedBushPositions)
+            {
+                Vector2Int bushWorld = new Vector2Int(b.x + terrainOffset.x, b.y + terrainOffset.y);
+                if (Vector2Int.Distance(worldCell, bushWorld) < enemyAvoidBushRadius)
+                {
+                    nearBush = true; break;
+                }
+            }
+            if (nearBush) continue;
+
+            // 生成
+            int lx = wx - terrainOffset.x;
+            int ly = wy - terrainOffset.y;
+            Vector3 pos = GridToWorld(lx, ly);
+            var inst = Instantiate(enemyPrefab, pos, Quaternion.identity);
+            if (terrainParent != null) inst.transform.SetParent(terrainParent);
+            spawned++;
+        }
+
+        if (showDebugInfo)
+        {
+            Debug.Log($"[TerrainInitialization] 初始生成怪物: {spawned}/{initialEnemyCount} (范围 {enemySpawnMinDist}-{enemySpawnMaxDist})");
+        }
+    }
+
+    private bool IsGrassWorldCell(Vector2Int worldCell)
+    {
+        // 如果有Tilemap，直接用Tilemap判断草/水
+        if (grassTilemap != null)
+        {
+            var cell = new Vector3Int(worldCell.x, worldCell.y, 0);
+            bool isGrass = grassTilemap.GetTile(cell) != null;
+            bool isWater = (waterTilemap != null && waterTilemap.GetTile(cell) != null);
+            return isGrass && !isWater;
+        }
+        // 回退到terrainMap
+        int lx = worldCell.x - terrainOffset.x;
+        int ly = worldCell.y - terrainOffset.y;
+        if (lx < 0 || lx >= mapWidth || ly < 0 || ly >= mapHeight) return false;
+        return terrainMap[lx, ly] == TerrainType.Grass;
     }
 
     /// <summary>
@@ -267,6 +403,25 @@ public class TerrainInitialization : MonoBehaviour
     }
 
     /// <summary>
+    /// 在初始生成的整张地图范围内（所有草地区域）均匀尝试生成草丛
+    /// </summary>
+    private void GenerateBushesConsistentDensityAcrossInitialMap()
+    {
+        // 构建初始地图范围内的世界格列表
+        List<Vector2Int> tiles = new List<Vector2Int>(mapWidth * mapHeight);
+        Vector2Int areaMinWorld = new Vector2Int(terrainOffset.x, terrainOffset.y);
+        Vector2Int areaMaxWorld = new Vector2Int(terrainOffset.x + mapWidth - 1, terrainOffset.y + mapHeight - 1);
+        for (int lx = 0; lx < mapWidth; lx++)
+        {
+            for (int ly = 0; ly < mapHeight; ly++)
+            {
+                tiles.Add(new Vector2Int(lx + terrainOffset.x, ly + terrainOffset.y));
+            }
+        }
+        GenerateBushesConsistentDensity(tiles, areaMinWorld, areaMaxWorld);
+    }
+
+    /// <summary>
     /// 在给定世界格列表内，按与初始一致的规则/密度生成草丛
     /// 保证：只在草地上、不在水域、仅限于提供的 tiles 范围内
     /// </summary>
@@ -275,33 +430,31 @@ public class TerrainInitialization : MonoBehaviour
         if (bushPrefabs == null || bushPrefabs.Length == 0) return;
         if (tiles == null || tiles.Count == 0) return;
 
-        // 计算目标草丛数量（按草地格数量与概率推算）
+        // 计算目标草丛数量（按草地格数量与概率推算），使用Tilemap判断以避免边界导致的条纹
         int grassCells = 0;
         foreach (var t in tiles)
         {
-            int lx = t.x - terrainOffset.x;
-            int ly = t.y - terrainOffset.y;
-            if (lx < 0 || lx >= mapWidth || ly < 0 || ly >= mapHeight) continue;
-            if (terrainMap[lx, ly] == TerrainType.Grass) grassCells++;
+            Vector3Int cell = new Vector3Int(t.x, t.y, 0);
+            bool isGrass = grassTilemap != null && grassTilemap.GetTile(cell) != null;
+            bool isWater = waterTilemap != null && waterTilemap.GetTile(cell) != null;
+            if (isGrass && !isWater) grassCells++;
         }
-        // 与 Inspector 的 bushSpawnChance 对齐：期望生成量 = grassCells * bushSpawnChance
-        int tries = Mathf.Clamp(Mathf.RoundToInt(grassCells * Mathf.Clamp01(bushSpawnChance)), 10, 600);
+        int tries = Mathf.Clamp(Mathf.RoundToInt(grassCells * Mathf.Clamp01(bushSpawnChance)), 10, Mathf.Max(10, grassCells));
 
         int spawned = 0;
         for (int i = 0; i < tries; i++)
         {
             var cell = tiles[Random.Range(0, tiles.Count)];
-            int lx = cell.x - terrainOffset.x;
-            int ly = cell.y - terrainOffset.y;
-            if (lx < 0 || lx >= mapWidth || ly < 0 || ly >= mapHeight) continue;
-            if (terrainMap[lx, ly] != TerrainType.Grass) continue;
-            if (IsWaterAtWorld(new Vector3Int(cell.x, cell.y, 0))) continue;
-            // 距离玩家过近则跳过，避免“刷脸”
-            if (!IsBeyondPlayerSafeSpawn(cell)) continue;
-            if (!AreTilemapsDistinct() && terrainMap[lx, ly] != TerrainType.Grass) continue;
+            Vector3Int wcell = new Vector3Int(cell.x, cell.y, 0);
+            bool isGrass = grassTilemap != null && grassTilemap.GetTile(wcell) != null;
+            bool isWater = waterTilemap != null && waterTilemap.GetTile(wcell) != null;
+            if (!isGrass || isWater) continue;
+            if (!IsBeyondPlayerSafeSpawn(cell)) continue; // 欧式距离
 
             var prefab = bushPrefabs[Random.Range(0, bushPrefabs.Length)];
             if (prefab == null) continue;
+            int lx = cell.x - terrainOffset.x; 
+            int ly = cell.y - terrainOffset.y;
             Vector3 pos = GridToWorld(lx, ly);
             var inst = Instantiate(prefab, pos, Quaternion.identity);
             if (terrainParent != null) inst.transform.SetParent(terrainParent);
@@ -370,7 +523,8 @@ public class TerrainInitialization : MonoBehaviour
             
             // 随机选择水域中心点，确保完整的圆形不会被边缘切割
             int maxRadius = 20; // 最大水域半径
-            int absoluteSafeBorder = maxRadius + 15; // 更大的安全边界，绝对避免切割
+            // 使用更保守的边界缓冲：半径上限20 + 额外4格扰动余量 + 10格安全带
+            int absoluteSafeBorder = maxRadius + 14; // 34格缓冲，尽量避免被地图边缘截断
             
             // 确保有足够的空间生成完整圆形
             if (absoluteSafeBorder * 2 + 20 >= mapWidth || absoluteSafeBorder * 2 + 20 >= mapHeight)
@@ -381,20 +535,35 @@ public class TerrainInitialization : MonoBehaviour
             
             int centerX = Random.Range(absoluteSafeBorder, mapWidth - absoluteSafeBorder);
             int centerY = Random.Range(absoluteSafeBorder, mapHeight - absoluteSafeBorder);
-            Vector2Int center = new Vector2Int(centerX, centerY);
+            Vector2Int centerLocal = new Vector2Int(centerX, centerY);
+            Vector2Int centerWorldGrid = new Vector2Int(centerLocal.x + terrainOffset.x, centerLocal.y + terrainOffset.y);
+
+            // 限制：距离玩家初始网格位置至少30格（Chebyshev 距离）
+            if (playerInitialGridSet)
+            {
+                int dx0 = Mathf.Abs(centerWorldGrid.x - playerInitialGrid.x);
+                int dy0 = Mathf.Abs(centerWorldGrid.y - playerInitialGrid.y);
+                int chebyshev0 = Mathf.Max(dx0, dy0);
+                if (chebyshev0 < 30)
+                    continue;
+            }
             
             // 检查与现有水域的距离
-            if (!IsValidWaterCenter(center))
+            if (!IsValidWaterCenter(centerLocal))
                 continue;
             
-            // 检查是否与玩家安全区域冲突
-            if (IsInPlayerSafeZone(center))
+            // 检查是否与玩家安全区域冲突（用世界网格距离）
+            if (IsInPlayerSafeZone(centerWorldGrid))
                 continue;
             
             // 进一步：若以最大半径考虑，水域边缘可能侵入玩家安全区，则放弃
-            int projected = 17; // 与预览半径一致
+            // 使用切比雪夫距离，并按 最大半径(20) + 额外缓冲(6) + 玩家安全半径 做最小安全距离
             Vector2Int playerGrid = WorldToGrid(playerTransform.position);
-            if (Mathf.Abs(center.x - playerGrid.x) <= projected && Mathf.Abs(center.y - playerGrid.y) <= projected)
+            int dxp = Mathf.Abs(centerLocal.x - playerGrid.x);
+            int dyp = Mathf.Abs(centerLocal.y - playerGrid.y);
+            int chebToPlayer = Mathf.Max(dxp, dyp);
+            int minSafeDist = Mathf.Max(0, playerSafeZoneSize) + 26; // 20 + 6 缓冲
+            if (chebToPlayer < minSafeDist)
                 continue;
             
             // 使用Perlin噪声影响生成概率
@@ -405,8 +574,39 @@ public class TerrainInitialization : MonoBehaviour
             // 只有噪声值高的地方才生成水域
             if (noiseValue < 0.3f) continue;
             
-            // 生成圆形水域
-            List<Vector2Int> waterCluster = GenerateCircularWaterCluster(center);
+            // 依据边界与玩家安全区动态收缩半径，保证完整圆形
+            int distLeft = centerLocal.x - 0;
+            int distRight = (mapWidth - 1) - centerLocal.x;
+            int distDown = centerLocal.y - 0;
+            int distUp = (mapHeight - 1) - centerLocal.y;
+            int minDistToMapEdge = Mathf.Min(distLeft, distRight, distDown, distUp);
+            float edgeClamp = Mathf.Max(0f, minDistToMapEdge - 1f);
+
+            float playerClamp = float.PositiveInfinity;
+            if (playerTransform != null)
+            {
+                Vector2Int playerGridWorld = WorldToGrid(playerTransform.position);
+                float distToPlayer = Vector2Int.Distance(playerGridWorld, centerWorldGrid);
+                int safeRadius = Mathf.Max(8, playerSafeZoneSize) + 2; // 玩家安全半径 + 缓冲
+                playerClamp = Mathf.Max(0f, distToPlayer - safeRadius);
+            }
+
+            float maxRadiusClamp = Mathf.Min(edgeClamp, playerClamp);
+
+            // 生成圆形水域（半径带 clamp）
+            List<Vector2Int> waterCluster = GenerateCircularWaterCluster(centerLocal, maxRadiusClamp);
+            bool touchesMapEdge = false;
+            int mapMinX = 0, mapMinY = 0, mapMaxX = mapWidth - 1, mapMaxY = mapHeight - 1;
+            foreach (var t in waterCluster)
+            {
+                if (t.x <= mapMinX || t.x >= mapMaxX || t.y <= mapMinY || t.y >= mapMaxY)
+                {
+                    touchesMapEdge = true;
+                    break;
+                }
+            }
+            if (touchesMapEdge)
+                continue;
             
             if (waterCluster.Count > 0)
             {
@@ -422,7 +622,7 @@ public class TerrainInitialization : MonoBehaviour
                 }
                 
                 // 记录水域中心点
-                waterCenters.Add(center);
+                waterCenters.Add(centerLocal);
             }
         }
         
@@ -461,12 +661,16 @@ public class TerrainInitialization : MonoBehaviour
     /// <summary>
     /// 生成真正圆形的水域簇
     /// </summary>
-    private List<Vector2Int> GenerateCircularWaterCluster(Vector2Int center)
+    private List<Vector2Int> GenerateCircularWaterCluster(Vector2Int center, float maxRadiusClamp = float.PositiveInfinity)
     {
         List<Vector2Int> cluster = new List<Vector2Int>();
         
-        // 计算水域半径，生成5-20格半径的圆形水域
+        // 计算水域半径，生成5-20格半径的圆形水域；允许按照外部 clamp 收缩
         float radius = Random.Range(5f, 20f);
+        if (!float.IsPositiveInfinity(maxRadiusClamp))
+        {
+            radius = Mathf.Min(radius, Mathf.Max(0f, maxRadiusClamp));
+        }
         
         // 遍历可能的圆形区域
         int intRadius = Mathf.CeilToInt(radius);
@@ -765,7 +969,7 @@ public class TerrainInitialization : MonoBehaviour
         return changed;
     }
 
-    // 对圆形边界周围的一圈做平滑，将“被草包围的水格”转换为草，避免直线/
+    // 对圆形边界周围的一圈做平滑，将"被草包围的水格"转换为草，避免直线/
     private void SmoothBoundaryRing(Vector2Int centerWorldGrid, int radius, int ringWidth)
     {
         int rMin2 = radius * radius;
@@ -1101,15 +1305,15 @@ public class TerrainInitialization : MonoBehaviour
             (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
         }
 
-        // 3) 最小间距采样（空间哈希）
-        float cellSize = Mathf.Max(1f, bushMinDistance / 1.4142f);
+        // 3) 最小间距采样（空间哈希，基于欧式距离）
+        float cellSize = Mathf.Max(1f, bushMinDistance / 1.732f); // 稍小单元，减少条纹
         Dictionary<Vector2Int, List<Vector2>> buckets = new Dictionary<Vector2Int, List<Vector2>>();
         System.Func<Vector2, Vector2Int> keyOf = (p) => new Vector2Int(Mathf.FloorToInt(p.x / cellSize), Mathf.FloorToInt(p.y / cellSize));
         int spawned = 0;
         foreach (var cell in candidates)
         {
             if (spawned >= target) break;
-            Vector2 pos = new Vector2(cell.x, cell.y);
+            Vector2 pos = new Vector2(cell.x + 0.37f * Random.value, cell.y + 0.41f * Random.value); // 细微抖动打散网格对齐
             Vector2Int k = keyOf(pos);
             bool ok = true;
             for (int dx = -1; dx <= 1 && ok; dx++)
@@ -1447,7 +1651,7 @@ public class TerrainInitialization : MonoBehaviour
                 
                 if (terrainMap[x, y] == TerrainType.Grass)
                 {
-                    // 若同一格存在水，则以水为准，直接“截掉”草
+                    // 若同一格存在水，则以水为准，直接"截掉"草
                     if (waterTilemap != null && waterTilemap.GetTile(tilePos) != null)
                     {
                         grassTilemap.SetTile(tilePos, null);
@@ -1636,15 +1840,13 @@ public class TerrainInitialization : MonoBehaviour
         return new Vector3(worldX, worldY, 0f);
     }
 
-    // 候选世界格是否远离玩家（避免“刷脸”）
+    // 候选世界格是否远离玩家（使用欧式距离，避免方形条纹）
     private bool IsBeyondPlayerSafeSpawn(Vector2Int worldCell)
     {
         if (playerTransform == null) return true;
         Vector2Int playerGrid = WorldToGrid(playerTransform.position);
-        int dx = Mathf.Abs(worldCell.x - playerGrid.x);
-        int dy = Mathf.Abs(worldCell.y - playerGrid.y);
-        int chebyshev = Mathf.Max(dx, dy);
-        return chebyshev >= bushNoSpawnRadiusFromPlayer;
+        float dist = Vector2Int.Distance(worldCell, playerGrid);
+        return dist >= Mathf.Max(0, bushNoSpawnRadiusFromPlayer);
     }
 
     // 当 Grass 与 Water 指向同一张 Tilemap 时，不能使用 Tilemap 判断水域
@@ -2766,7 +2968,7 @@ public class TerrainInitialization : MonoBehaviour
                 int worldY = localY + terrainOffset.y;
                 Vector3Int tilemapPos = new Vector3Int(worldX, worldY, 0);
 
-                // 只在“已加载范围”内生成
+                // 只在"已加载范围"内生成
                 Vector2Int worldMin = new Vector2Int(terrainOffset.x, terrainOffset.y);
                 Vector2Int worldMax = new Vector2Int(terrainOffset.x + mapWidth - 1, terrainOffset.y + mapHeight - 1);
                 if (currentMapMax != Vector2Int.zero || currentMapMin != Vector2Int.zero)
@@ -3658,38 +3860,63 @@ public class TerrainInitialization : MonoBehaviour
             attempts++;
             
             // 从可用地块中随机选择一个作为水域中心
-            Vector2Int center = availableTiles[Random.Range(0, availableTiles.Count)];
+            Vector2Int centerLocal = availableTiles[Random.Range(0, availableTiles.Count)];
+            Vector2Int centerWorldGrid = new Vector2Int(centerLocal.x + terrainOffset.x, centerLocal.y + terrainOffset.y);
+
+            // 限制：扩展阶段同样要求距离玩家初始网格位置至少30格（Chebyshev 距离）
+            if (playerInitialGridSet)
+            {
+                int dx0 = Mathf.Abs(centerWorldGrid.x - playerInitialGrid.x);
+                int dy0 = Mathf.Abs(centerWorldGrid.y - playerInitialGrid.y);
+                int chebyshev0 = Mathf.Max(dx0, dy0);
+                if (chebyshev0 < 30)
+                    continue;
+            }
             
-            // 额外：确保以中心为半径(r+2)的圆完全落在新区域内，避免“半圆被边界切割”
-            int previewRadius = 17; // 覆盖最大半径裕量（与 GenerateExpandedCircularWaterCluster 半径上限对齐）
-            if (center.x - previewRadius < newMapMin.x || center.x + previewRadius > newMapMax.x ||
-                center.y - previewRadius < newMapMin.y || center.y + previewRadius > newMapMax.y)
+            // 额外：使用更保守的安全半径，确保整个水域簇不会被扩展边界切割
+            // 半径上限20，再加上边缘扰动与平滑余量，取 26 作为安全半径
+            int safeRadius = 26;
+            if (centerLocal.x - safeRadius < newMapMin.x || centerLocal.x + safeRadius > newMapMax.x ||
+                centerLocal.y - safeRadius < newMapMin.y || centerLocal.y + safeRadius > newMapMax.y)
             {
                 continue; // 换一个中心，避免在边缘造成半圆
             }
             
             // 检查是否太接近扩展区域的边缘
-            if (avoidBorderWater && IsNearExpansionBorder(center, newMapMin, newMapMax))
+            if (avoidBorderWater && IsNearExpansionBorder(centerLocal, newMapMin, newMapMax))
                 continue;
             
             // 检查与现有水域的距离（包括原有水域和新扩展的水域）
-            if (!IsValidExpandedWaterCenter(center, expandedWaterCenters))
+            if (!IsValidExpandedWaterCenter(centerLocal, expandedWaterCenters))
                 continue;
             
             // 检查是否与玩家安全区域冲突
-            if (IsInPlayerSafeZone(center))
+            if (IsInPlayerSafeZone(centerLocal))
                 continue;
             
-            // 检查距离玩家是否足够远
-            Vector3 worldPos = GridToWorld(center.x, center.y);
-            float distanceToPlayer = Vector3.Distance(worldPos, playerTransform.position);
-            if (distanceToPlayer <= playerSafeZoneSize * 1.5f)
+            // 检查距离玩家是否足够远（切比雪夫）；按 最大半径(20) + 6 缓冲 + 玩家安全半径
+            Vector2Int playerGrid = WorldToGrid(playerTransform.position);
+            int dxp = Mathf.Abs(centerLocal.x - playerGrid.x);
+            int dyp = Mathf.Abs(centerLocal.y - playerGrid.y);
+            int chebToPlayer = Mathf.Max(dxp, dyp);
+            int minSafeDist = Mathf.Max(0, playerSafeZoneSize) + 26;
+            if (chebToPlayer < minSafeDist)
                 continue;
             
-            // 生成圆形水域簇
-            List<Vector2Int> waterCluster = GenerateExpandedCircularWaterCluster(center, availableTiles);
+            // 计算允许的最小边距，若靠近原有边界则缩小半径以保证圆完整
+            int distLeft = centerLocal.x - newMapMin.x;
+            int distRight = newMapMax.x - centerLocal.x;
+            int distDown = centerLocal.y - newMapMin.y;
+            int distUp = newMapMax.y - centerLocal.y;
+            int minDistToBorder = Mathf.Min(distLeft, distRight, distDown, distUp);
+            float borderMargin = 1f; // 留1格余量，防止贴边
+            float maxRadiusClamp = Mathf.Max(0f, minDistToBorder - borderMargin);
+
+            // 生成圆形水域簇（半径会被 clamp 在允许范围内）；
+            // 不使用 availableTiles 进行几何裁剪，以免切掉圆形边界
+            List<Vector2Int> waterCluster = GenerateExpandedCircularWaterCluster(centerLocal, null, maxRadiusClamp);
             
-            // 若生成的簇有任何一格超出扩展边界，则丢弃该簇，避免半圆
+            // 半径已根据边界收缩；若仍触边，直接丢弃，避免半圆
             bool touchesBorder = false;
             foreach (var t in waterCluster)
             {
@@ -3717,8 +3944,8 @@ public class TerrainInitialization : MonoBehaviour
                 }
                 
                 // 记录水域中心点
-                expandedWaterCenters.Add(center);
-                waterCenters.Add(center);
+                expandedWaterCenters.Add(centerLocal);
+                waterCenters.Add(centerLocal);
             }
             
             // 每生成几个水域后让出一帧
@@ -3765,12 +3992,16 @@ public class TerrainInitialization : MonoBehaviour
     /// <summary>
     /// 为扩展区域生成圆形水域簇
     /// </summary>
-    private List<Vector2Int> GenerateExpandedCircularWaterCluster(Vector2Int center, List<Vector2Int> availableTiles)
+    private List<Vector2Int> GenerateExpandedCircularWaterCluster(Vector2Int center, List<Vector2Int> availableTiles, float maxRadiusClamp = float.PositiveInfinity)
     {
         List<Vector2Int> cluster = new List<Vector2Int>();
         
-        // 扩展区域的水域稍小一些；但上限与边界检测配合，避免半圆
+        // 扩展区域的水域稍小一些；允许根据边界距离动态收缩半径
         float radius = Random.Range(5f, 15f);
+        if (!float.IsPositiveInfinity(maxRadiusClamp))
+        {
+            radius = Mathf.Min(radius, Mathf.Max(0f, maxRadiusClamp));
+        }
         
         // 使用与主生成相同的逻辑，确保一致性
         
@@ -3782,8 +4013,8 @@ public class TerrainInitialization : MonoBehaviour
             {
                 Vector2Int pos = new Vector2Int(x, y);
                 
-                // 只在可用地块中生成
-                if (!availableTiles.Contains(pos))
+                // 只在可用地块中生成（若提供了 availableTiles）
+                if (availableTiles != null && availableTiles.Count > 0 && !availableTiles.Contains(pos))
                     continue;
                 
                 float distance = Vector2.Distance(new Vector2(x, y), new Vector2(center.x, center.y));
@@ -3911,5 +4142,160 @@ public class TerrainInitialization : MonoBehaviour
         }
         
         return isInSafeZone;
+    }
+
+    // ===== 分块卸载/还原 主流程 =====
+    private void StreamChunksAroundPlayer()
+    {
+        Vector2Int playerGrid = WorldToGrid(playerTransform.position);
+        Vector2Int playerChunk = new Vector2Int(Mathf.FloorToInt((float)playerGrid.x / chunkSize), Mathf.FloorToInt((float)playerGrid.y / chunkSize));
+
+        int loadR = loadRadiusChunks;
+        int unloadR = unloadRadiusChunks;
+
+        HashSet<Vector2Int> shouldBeLoaded = new HashSet<Vector2Int>();
+        for (int cx = playerChunk.x - loadR; cx <= playerChunk.x + loadR; cx++)
+        {
+            for (int cy = playerChunk.y - loadR; cy <= playerChunk.y + loadR; cy++)
+            {
+                shouldBeLoaded.Add(new Vector2Int(cx, cy));
+            }
+        }
+
+        // 卸载超出卸载半径的区块
+        List<Vector2Int> toUnloadNow = new List<Vector2Int>();
+        for (int cx = playerChunk.x - unloadR; cx <= playerChunk.x + unloadR; cx++)
+        {
+            for (int cy = playerChunk.y - unloadR; cy <= playerChunk.y + unloadR; cy++)
+            {
+                Vector2Int c = new Vector2Int(cx, cy);
+                if (!shouldBeLoaded.Contains(c))
+                {
+                    toUnloadNow.Add(c);
+                }
+            }
+        }
+        foreach (var c in toUnloadNow)
+        {
+            TryUnloadChunk(c);
+        }
+
+        // 还原需要加载的区块
+        foreach (var c in shouldBeLoaded)
+        {
+            TryRestoreChunk(c);
+        }
+    }
+
+    private Vector2Int ChunkMin(Vector2Int chunk) => new Vector2Int(chunk.x * chunkSize, chunk.y * chunkSize);
+    private Vector2Int ChunkMax(Vector2Int chunk) => new Vector2Int((chunk.x + 1) * chunkSize - 1, (chunk.y + 1) * chunkSize - 1);
+
+    private void TryUnloadChunk(Vector2Int chunk)
+    {
+        if (unloadedChunks.Contains(chunk)) return;
+
+        Vector2Int min = ChunkMin(chunk);
+        Vector2Int max = ChunkMax(chunk);
+
+        ChunkSnapshot snap = new ChunkSnapshot();
+
+        // 记录水域tile
+        if (waterTilemap != null)
+        {
+            for (int x = min.x; x <= max.x; x++)
+            {
+                for (int y = min.y; y <= max.y; y++)
+                {
+                    Vector3Int cell = new Vector3Int(x, y, 0);
+                    if (waterTilemap.GetTile(cell) != null)
+                    {
+                        snap.waterTiles.Add(cell);
+                    }
+                }
+            }
+        }
+
+        // 记录并移除草丛
+        if (terrainParent != null)
+        {
+            Transform[] allChildren = terrainParent.GetComponentsInChildren<Transform>(true);
+            foreach (Transform t in allChildren)
+            {
+                if (t == terrainParent) continue;
+                // 只处理名字包含任一 bushPrefab 名称的对象
+                if (bushPrefabs != null)
+                {
+                    foreach (var prefab in bushPrefabs)
+                    {
+                        if (prefab == null) continue;
+                        if (t.name.Contains(prefab.name))
+                        {
+                            Vector2 pos = new Vector2(t.position.x, t.position.y);
+                            if (pos.x >= min.x && pos.x <= max.x && pos.y >= min.y && pos.y <= max.y)
+                            {
+                                var b = new BushSnapshot
+                                {
+                                    worldGridPos = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y)),
+                                    localScale = t.localScale,
+                                    prefabName = prefab.name
+                                };
+                                snap.bushes.Add(b);
+                                GameObject.Destroy(t.gameObject);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 清空该区块的水域tile
+        if (waterTilemap != null)
+        {
+            foreach (var cell in snap.waterTiles)
+            {
+                waterTilemap.SetTile(cell, null);
+            }
+        }
+
+        // 标记已卸载
+        chunkSnapshots[chunk] = snap;
+        unloadedChunks.Add(chunk);
+    }
+
+    private void TryRestoreChunk(Vector2Int chunk)
+    {
+        if (!unloadedChunks.Contains(chunk)) return; // 未卸载则无需还原
+        if (!chunkSnapshots.TryGetValue(chunk, out var snap)) return;
+
+        // 还原水域tile
+        if (waterTilemap != null && waterTile != null)
+        {
+            foreach (var cell in snap.waterTiles)
+            {
+                waterTilemap.SetTile(cell, waterTile);
+            }
+        }
+
+        // 还原草丛
+        if (terrainParent != null && bushPrefabs != null)
+        {
+            foreach (var b in snap.bushes)
+            {
+                GameObject prefab = null;
+                foreach (var p in bushPrefabs) { if (p != null && b.prefabName != null && p.name.Contains(b.prefabName)) { prefab = p; break; } }
+                if (prefab == null) prefab = bushPrefabs.Length > 0 ? bushPrefabs[Random.Range(0, bushPrefabs.Length)] : null;
+                if (prefab == null) continue;
+                int lx = b.worldGridPos.x - terrainOffset.x;
+                int ly = b.worldGridPos.y - terrainOffset.y;
+                Vector3 pos = GridToWorld(lx, ly);
+                var inst = Instantiate(prefab, pos, Quaternion.identity);
+                inst.transform.localScale = b.localScale;
+                inst.transform.SetParent(terrainParent);
+            }
+        }
+
+        // 标记已还原
+        unloadedChunks.Remove(chunk);
+        chunkSnapshots.Remove(chunk);
     }
 }

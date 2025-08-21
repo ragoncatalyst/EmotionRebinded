@@ -35,6 +35,7 @@ namespace MyGame.Environment
         
         // 私有变量
         private SpriteRenderer spriteRenderer;
+        private SpriteRenderer shadowRenderer;
         private BoxCollider2D boxCollider;
         private FacingCamera facingCamera;
         private DynamicSorting dynamicSorting;
@@ -115,6 +116,8 @@ namespace MyGame.Environment
             
             // 随机化摇摆起始时间，避免所有灌木同步摇摆
             swayTimer = Random.Range(0f, Mathf.PI * 2f);
+
+            if (enableShadow) SetupShadow(); else { var ch = transform.Find("Shadow"); if (ch) Destroy(ch.gameObject); }
         }
         
         private void Update()
@@ -134,6 +137,7 @@ namespace MyGame.Environment
             }
             
             // DynamicSorting 组件会自动处理渲染层级更新
+            UpdateShadow();
         }
         
         /// <summary>
@@ -163,6 +167,48 @@ namespace MyGame.Environment
                 spriteRenderer.sprite = defaultSprite;
                 Debug.Log($"[Bush] {gameObject.name} 已创建默认占位符Sprite");
             }
+        }
+
+        [Header("阴影")]
+        [SerializeField] private bool enableShadow = false;
+        [SerializeField] private Vector3 shadowOffset = new Vector3(0f, -0.1f, 0f);
+        [SerializeField] private Vector3 shadowScale = new Vector3(1f, 0.5f, 1f);
+        [SerializeField] private Color shadowColor = new Color(0f, 0f, 0f, 0.3f);
+        [SerializeField] private int shadowOrderOffset = -1;
+
+        private void SetupShadow()
+        {
+            if (!enableShadow || spriteRenderer == null) return;
+            if (shadowRenderer == null)
+            {
+                GameObject s = new GameObject("Shadow");
+                s.transform.SetParent(transform);
+                s.transform.localPosition = shadowOffset;
+                s.transform.localScale = shadowScale;
+                shadowRenderer = s.AddComponent<SpriteRenderer>();
+            }
+            shadowRenderer.sprite = spriteRenderer.sprite;
+            shadowRenderer.color = shadowColor;
+            shadowRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+            shadowRenderer.sortingOrder = spriteRenderer.sortingOrder + shadowOrderOffset;
+            shadowRenderer.enabled = enableShadow;
+        }
+
+        private void UpdateShadow()
+        {
+            if (!enableShadow) { var ch = transform.Find("Shadow"); if (ch) Destroy(ch.gameObject); return; }
+            if (shadowRenderer == null || spriteRenderer == null) return;
+            shadowRenderer.sprite = spriteRenderer.sprite;
+            shadowRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+            shadowRenderer.sortingOrder = spriteRenderer.sortingOrder + shadowOrderOffset;
+            float bottom = spriteRenderer.bounds.min.y - 0.02f;
+            var p = shadowRenderer.transform.position;
+            p.x = transform.position.x;
+            p.y = bottom;
+            p.z = transform.position.z;
+            shadowRenderer.transform.position = p;
+            shadowRenderer.transform.localScale = shadowScale;
+            shadowRenderer.color = shadowColor;
         }
         
         /// <summary>

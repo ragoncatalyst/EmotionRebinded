@@ -63,6 +63,28 @@ namespace MyGame.UI
 
         public System.Action<NineButtons> OnSkillChanged;
 
+        // ===== 键盘抑制：用于面板关闭后的按键仍保持按下时，直到松开才允许再次生效 =====
+        private static System.Collections.Generic.HashSet<KeyCode> suppressedKeys = new System.Collections.Generic.HashSet<KeyCode>();
+        public static void SuppressKeyUntilRelease(KeyCode key)
+        {
+            if (key != KeyCode.None)
+            {
+                suppressedKeys.Add(key);
+            }
+        }
+        private static bool IsKeySuppressed(KeyCode key)
+        {
+            return key != KeyCode.None && suppressedKeys.Contains(key);
+        }
+        private static void TryClearSuppressedOnRelease(KeyCode key)
+        {
+            if (key == KeyCode.None) return;
+            if (!Input.GetKey(key))
+            {
+                suppressedKeys.Remove(key);
+            }
+        }
+
         private void Reset()
         {
             if (!canvasGroup) canvasGroup = GetComponent<CanvasGroup>();
@@ -79,7 +101,7 @@ namespace MyGame.UI
             if (!canvasGroup) canvasGroup = gameObject.AddComponent<CanvasGroup>();
             if (button != null) button.onClick.AddListener(Press);
 
-            // 更新技能信息和cd时长
+            // 更新技能信息
             UpdateSkillInfo();
             cooldownDuration = cooldownSeconds;
             UpdateLabels();
@@ -104,8 +126,21 @@ namespace MyGame.UI
 
         private void Update()
         {
-            // 只要有绑定的按键且不是"00"技能，就监听键盘
-            bool shouldListenKeyboard = (keyBind != KeyCode.None && skillId != "00");
+            // 面板打开时，不处理按键
+            bool isPanelOpen = false;
+            var upgradePanel = FindObjectOfType<UpgradePanelController>();
+            if (upgradePanel != null && upgradePanel.panelRoot != null)
+                isPanelOpen = upgradePanel.panelRoot.activeSelf;
+
+            // 只有在允许监听、未打开面板、且有有效按键与技能时才监听键盘
+            bool shouldListenKeyboard = (listenKeyboard && !isPanelOpen && keyBind != KeyCode.None && skillId != "00");
+
+            // 若该键被抑制（等待用户先松开），则在松开前不处理输入
+            if (IsKeySuppressed(keyBind))
+            {
+                TryClearSuppressedOnRelease(keyBind);
+                return;
+            }
             
             if (shouldListenKeyboard)
             {
@@ -178,8 +213,9 @@ namespace MyGame.UI
             if (isOnCooldown || skillId == "00") return;
             Debug.Log($"[NineButtons] Click: {row}{(int)column} | Key:{keyBind} | Skill:{skillId}");
             
-            // 应用按下效果
-            StartCoroutine(MouseClickTintEffect());
+            // 应用按下效果（如果是鼠标点击才使用短暂tint；键盘按下已由 ApplyPressedEffect 控制，避免双重变灰）
+            if (!isPressed)
+                StartCoroutine(MouseClickTintEffect());
             
             // 执行技能效果
             ExecuteSkill();
@@ -245,8 +281,9 @@ namespace MyGame.UI
                 isOnCooldown = false;
                 cooldownTimer = 0f;
                 cooldownDuration = cooldownSeconds;
-                if (button) button.interactable = true;
+                if (button) { button.interactable = true; RefreshButtonVisualState(); }
                 if (cooldownFill) cooldownFill.fillAmount = 0f;
+                EnsureOpaqueVisuals();
     
                 return;
             }
@@ -255,8 +292,9 @@ namespace MyGame.UI
             cooldownTimer = cdSeconds;
             isOnCooldown = true;
 
-            if (button) button.interactable = false;
+            if (button) { button.interactable = false; RefreshButtonVisualState(); }
             if (cooldownFill) cooldownFill.fillAmount = 1f;
+            EnsureOpaqueVisuals();
 
         }
 
@@ -268,7 +306,7 @@ namespace MyGame.UI
             // 更新技能信息和cd时长
             UpdateSkillInfo();
             
-            // 如果手动指定了冷却时间，则覆盖从数据库读取的值
+            // 如果手动指定了冷却时间，则覆盖从数据库读取的值（默认不传，直接用数据库）
             if (newCdSeconds >= 0f) cooldownSeconds = newCdSeconds;
             
             UpdateLabels();
@@ -293,7 +331,7 @@ namespace MyGame.UI
 
         public void ApplyBoundState()
         {
-            if (button) button.interactable = true;
+            if (button) { button.interactable = true; RefreshButtonVisualState(); }
             listenKeyboard = true;
 
             
@@ -312,10 +350,55 @@ namespace MyGame.UI
                 }
             }
             
-            if (canvasGroup) canvasGroup.alpha = 1f;
+            EnsureOpaqueVisuals();
             UpdateLabels(); // 确保标签正确更新
             
             Debug.Log($"[NineButtons] {gameObject.name} ApplyBoundState: skillId={skillId}, keyBind={keyBind}, listenKeyboard={listenKeyboard}");
+        }
+
+        private void RefreshButtonVisualState()
+        {
+            if (button == null) return;
+            var tg = button.targetGraphic;
+            var cb = button.colors;
+            // 强制所有状态颜色 alpha=1
+            cb.normalColor = SetA(cb.normalColor, 1f);
+            cb.highlightedColor = SetA(cb.highlightedColor, 1f);
+            cb.pressedColor = SetA(cb.pressedColor, 1f);
+            cb.disabledColor = SetA(cb.disabledColor, 1f);
+            cb.selectedColor = SetA(cb.selectedColor, 1f);
+            button.colors = cb;
+            if (tg != null)
+            {
+                Color c = tg.color; c.a = 1f; tg.color = c;
+            }
+        }
+
+        private static Color SetA(Color c, float a) { c.a = a; return c; }
+
+        private void EnsureOpaqueVisuals()
+        {
+            if (canvasGroup) canvasGroup.alpha = 1f;
+            // 处理全部子 Graphic（Image、TMP 等）
+            var graphics = GetComponentsInChildren<UnityEngine.UI.Graphic>(true);
+            foreach (var g in graphics)
+            {
+                Color c = g.color; c.a = 1f; g.color = c;
+            }
+            // 单独确保CD条颜色不被设置为半透明
+            if (cooldownFill)
+            {
+                Color c = cooldownFill.color; c.a = 1f; cooldownFill.color = c;
+            }
+            // 恢复中央图标到原始颜色并确保完全不透明
+            if (iconImage != null)
+            {
+                Color c = originalIconColor;
+                c.a = 1f;
+                iconImage.color = c;
+                iconImage.enabled = true;
+            }
+            RefreshButtonVisualState();
         }
 
         /// <summary>
@@ -331,12 +414,8 @@ namespace MyGame.UI
                 // 按下时让中央图标变灰
                 if (iconImage != null)
                 {
-                    Color oldColor = iconImage.color;
-                    iconImage.color = iconPressedColor;
-                    Debug.Log($"[NineButtons] {gameObject.name} 图标颜色已改变：{oldColor} -> {iconImage.color}");
-                    Debug.Log($"[NineButtons] {gameObject.name} iconImage GameObject: {iconImage.gameObject.name}");
-                    Debug.Log($"[NineButtons] {gameObject.name} iconImage enabled: {iconImage.enabled}");
-                    Debug.Log($"[NineButtons] {gameObject.name} iconImage sprite: {(iconImage.sprite != null ? iconImage.sprite.name : "null")}");
+                    Color pressedColor = iconPressedColor; pressedColor.a = 1f;
+                    iconImage.color = pressedColor;
                 }
                 else
                 {
@@ -352,8 +431,8 @@ namespace MyGame.UI
                 // 释放时恢复中央图标原始颜色
                 if (iconImage != null)
                 {
-                    iconImage.color = originalIconColor;
-                    Debug.Log($"[NineButtons] {gameObject.name} 图标颜色已恢复：{originalIconColor}");
+                    Color restore = originalIconColor; restore.a = 1f;
+                    iconImage.color = restore;
                 }
                 
 
@@ -375,15 +454,16 @@ namespace MyGame.UI
             // 鼠标点击时让中央图标变灰
             if (iconImage != null)
             {
-                iconImage.color = iconPressedColor;
+                Color pressed = iconPressedColor; pressed.a = 1f;
+                iconImage.color = pressed;
                 Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标变灰效果已应用");
             }
             
             // 等待短暂时间
             yield return new WaitForSeconds(0.15f);
             
-            // 恢复图标颜色
-            if (iconImage != null)
+            // 恢复图标颜色（仅当此时没有处于键盘按下状态，避免与按住的变灰叠加）
+            if (iconImage != null && !isPressed)
             {
                 iconImage.color = originalIconColorTemp;
                 Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标颜色已恢复");
@@ -545,10 +625,18 @@ namespace MyGame.UI
             
             if (skillIdText) 
             {
-                // 如果是00技能（未绑定），显示空格；否则显示技能编号
-                skillIdText.text = (skillId == "00") ? "  " : skillId;
+                // 显示技能名称（00 显示空格）
+                if (skillId == "00")
+                {
+                    skillIdText.text = "  ";
+                }
+                else
+                {
+                    var info = SkillDatabase.GetSkillInfo(skillId);
+                    skillIdText.text = info != null ? info.name : skillId;
+                }
                 skillIdText.alignment = TextAlignmentOptions.Center;
-                Debug.Log($"[NineButtons] {gameObject.name} 更新技能编号显示: skillId={skillId}, 显示文本='{skillIdText.text}'");
+                Debug.Log($"[NineButtons] {gameObject.name} 更新技能名称显示: skillId={skillId}, 显示文本='{skillIdText.text}'");
             }
         }
 

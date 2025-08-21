@@ -160,35 +160,25 @@ public class DynamicSorting : MonoBehaviour
         {
             case ObjectType.Player:
                 baseSortingOrder = 100;   // 正常基础层级
-                // Player使用GameObject中心点作为排序参考，偏移设为(0,0)
-                sortingOffset = new Vector2(0f, 0f);
-                Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+                // 保留 Inspector 中的 sortingOffset，不再强制为 (0,0)
+                Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Enemy:
                 baseSortingOrder = 80;    // 略低于Player
-                if (sortingOffset.y == 0f)
-                {
-                    sortingOffset = new Vector2(sortingOffset.x, -0.4f);
-                }
+                // 保留 Inspector 配置，不再强制改写 Y 偏移
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Enemy类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Bush:
                 baseSortingOrder = 50;    // 低于Player，确保能被Player遮挡，但能遮挡Player
-                if (sortingOffset.y == 0f)
-                {
-                    sortingOffset = new Vector2(sortingOffset.x, -0.8f); // 将参考点移到灌木丛底部
-                }
+                // 保留 Inspector 配置，不再强制改写 Y 偏移
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Bush类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Building:
                 baseSortingOrder = 20;    // 最低基础层级
-                if (sortingOffset.y == 0f)
-                {
-                    sortingOffset = new Vector2(sortingOffset.x, -1.0f);
-                }
+                // 保留 Inspector 配置，不再强制改写 Y 偏移
                 Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Building类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
@@ -284,11 +274,10 @@ public class DynamicSorting : MonoBehaviour
     public void ConfigureForPlayer()
     {
         baseSortingOrder = 100;  // 正常基础层级
-        // Player使用GameObject中心点作为排序参考，偏移设为(0,0)
-        sortingOffset = new Vector2(0f, 0f);
+        // 不再强制写入 sortingOffset，保留 Inspector 设置
         showSortingPoint = true;
         UpdateSortingOrder();
-        Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Player排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+        Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Player排序设置 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
     }
     
     /// <summary>
@@ -298,11 +287,7 @@ public class DynamicSorting : MonoBehaviour
     public void ConfigureForBush()
     {
         baseSortingOrder = 50;    // 低于Player，确保正常Y排序遮挡
-        // 保留Inspector中设置的X值
-        if (sortingOffset.y == 0f)
-        {
-            sortingOffset = new Vector2(sortingOffset.x, -0.8f); // 将参考点移到灌木丛底部
-        }
+        // 不再强制写入 sortingOffset，保留 Inspector 设置
         showSortingPoint = true;
         UpdateSortingOrder();
         Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Bush排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
@@ -315,10 +300,7 @@ public class DynamicSorting : MonoBehaviour
     public void ConfigureForEnemy()
     {
         baseSortingOrder = 80;    // 略低于Player
-        if (sortingOffset.y == 0f)
-        {
-            sortingOffset = new Vector2(sortingOffset.x, -0.4f); // Enemy脚部偏移
-        }
+        // 不再强制写入 sortingOffset，保留 Inspector 设置
         showSortingPoint = true;
         UpdateSortingOrder();
         Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Enemy排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
@@ -337,7 +319,7 @@ public class DynamicSorting : MonoBehaviour
         sortingPrecision = 10f;   // 保持正常精度
         minSortingOrder = -30000; // 绝对安全范围，但仍高于地面-32768
         maxSortingOrder = 32767;  // 最大可能值
-        sortingOffset = new Vector2(0f, 0f);
+        // 不再强制写入 sortingOffset，保留 Inspector 设置
         
         UpdateSortingOrder();
         
