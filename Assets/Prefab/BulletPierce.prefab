@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 253388699166597352}
   - component: {fileID: 6900563081018740136}
   - component: {fileID: 1790035800377046209}
+  - component: {fileID: 2751291551849150797}
+  - component: {fileID: 6553964582223597267}
   m_Layer: 0
   m_Name: BulletPierce
   m_TagString: Untagged
@@ -158,3 +160,38 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
+--- !u!114 &2751291551849150797
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8624569859880769394}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa797a4cb2c5348efbb7744a380985c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  growSpeed: 30
+  maxLength: 10000
+  damage: 10
+  origin: {fileID: 6831777461936673293, guid: db9dbadd2febb461fbbfdd00fb8482cd, type: 3}
+  segmentLength: 0.5
+  thickness: 0.35
+  startFadeDelay: 0.5
+  fadeInterval: 0.15
+  fadeStep: 0.2
+--- !u!114 &6553964582223597267
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8624569859880769394}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5832eb202eff4654a8462d559904726, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  parent: {fileID: 2751291551849150797}
+  damagePerSecond: 10

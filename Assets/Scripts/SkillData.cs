@@ -53,7 +53,7 @@ public static class SkillDatabase
         skillDict["04"] = new SkillInfo("04", "Move Right", "xyinput", 0, "Move right");
         // All new attack skills use a 2.0s cooldown (as requested)
         skillDict["05"] = new SkillInfo("05", "Homing Bullet", "skill05_homing", 2.0f, "Fire a homing bullet at the nearest enemy");
-        skillDict["06"] = new SkillInfo("06", "Piercing Shot", "skill06_pierce", 2.0f, "Shoot a fast piercing bolt through enemies");
+        skillDict["06"] = new SkillInfo("06", "Piercing Shot", "skill06_pierce", 10.0f, "Shoot a fast piercing beam that extends from the player");
         skillDict["07"] = new SkillInfo("07", "Nova Blast", "skill07_nova", 2.0f, "Emit a short-range radial blast around the player");
     }
 

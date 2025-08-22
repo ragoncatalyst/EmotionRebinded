@@ -176,6 +176,11 @@ public class PlayerController : MonoBehaviour
     [Header("Skill Prefabs")]
     public GameObject homingBulletPrefab;
     public GameObject piercingShotPrefab;
+    [Header("Piercing Shot Config")]
+    public float piercingLengthPerSecond = 80f; // 伸长速度（单位/秒）
+    public float piercingMaxLength = 50f;       // 最大长度（单位）
+    public float piercingThickness = 0.35f;    // 粗细
+    public float piercingDamage = 10f;         // 伤害
 
     private void CastHomingBullet()
     {
@@ -191,32 +196,26 @@ public class PlayerController : MonoBehaviour
 
     private void CastPiercingShot()
     {
-        // Simple fast projectile straight to nearest enemy direction, pierces without destroying on hit
-        Vector3 dir = Vector3.right; // default
-        Enemy nearest = FindNearestEnemy();
+        // 方向：指向最近敌人；若没有则向右
+        Vector3 dir = Vector3.right;
+        Enemy nearest = FindNearestEnemyWithin(30f); // 与子弹一致只考虑30格内
         if (nearest != null)
-        {
             dir = (nearest.transform.position - transform.position).normalized;
-        }
-        if (piercingShotPrefab != null)
-        {
-            var go = Instantiate(piercingShotPrefab, transform.position, Quaternion.identity);
-            go.transform.right = dir;
-        }
-        else if (homingBulletPrefab != null)
-        {
-            // fallback: reuse homing bullet with no destroy on hit and higher speed
-            var go = Instantiate(homingBulletPrefab, transform.position, Quaternion.identity);
-            var hb = go.GetComponent<HomingBullet>();
-            if (hb != null)
-            {
-                hb.destroyOnHit = false;
-                hb.startSpeed = 14f;
-                hb.minSpeed = 14f;
-                hb.rotateTowardsFactor = 0f; // straight
-            }
-            go.transform.right = dir;
-        }
+
+        // 生成并配置 PiercingShot（分段生成、渐隐）
+        GameObject go = new GameObject("PiercingShot");
+        go.transform.position = transform.position;
+        go.transform.right = dir;
+        var ps = go.AddComponent<PiercingShot>();
+        ps.growSpeed = Mathf.Max(0.1f, piercingLengthPerSecond);
+        ps.maxLength = Mathf.Max(0.1f, piercingMaxLength);
+        ps.damage = Mathf.Max(0f, piercingDamage);
+        ps.origin = transform;
+        // 动态调整段长度：保证段数≈50，避免增长受限；可非常长
+        ps.segmentLength = Mathf.Max(piercingMaxLength / 50f, 0.5f);
+        ps.thickness = piercingThickness;
+        ps.SetDirection(dir);
+        Debug.Log($"[PlayerController] PiercingShot spawn dir={dir}, maxLen={ps.maxLength}, grow={ps.growSpeed}, segLen={ps.segmentLength}");
     }
 
     private void CastNovaBlast()
@@ -246,6 +245,21 @@ public class PlayerController : MonoBehaviour
             if (e == null || !e.gameObject.activeInHierarchy) continue;
             float d = (e.transform.position - transform.position).sqrMagnitude;
             if (d < best) { best = d; bestE = e; }
+        }
+        return bestE;
+    }
+
+    private Enemy FindNearestEnemyWithin(float maxDist)
+    {
+        Enemy[] enemies = FindObjectsOfType<Enemy>();
+        float best = float.PositiveInfinity;
+        Enemy bestE = null;
+        float maxSqr = maxDist * maxDist;
+        foreach (var e in enemies)
+        {
+            if (e == null || !e.gameObject.activeInHierarchy) continue;
+            float d = (e.transform.position - transform.position).sqrMagnitude;
+            if (d <= maxSqr && d < best) { best = d; bestE = e; }
         }
         return bestE;
     }

@@ -17,6 +17,8 @@ public class HomingBullet : MonoBehaviour
     private Rigidbody2D rb;
     private float currentSpeed;
     private float life;
+    private Transform player;
+    private float maxChaseDistance = 30f; // 只攻击玩家30格内的敌人
 
     private void Awake()
     {
@@ -32,6 +34,8 @@ public class HomingBullet : MonoBehaviour
 
     private void Start()
     {
+        var p = GameObject.FindWithTag("Player");
+        if (p != null) player = p.transform;
         AcquireNearestTarget();
     }
 
@@ -53,6 +57,14 @@ public class HomingBullet : MonoBehaviour
                 transform.position += transform.right * (currentSpeed * Time.deltaTime);
                 Decelerate();
                 return;
+            }
+        }
+        else if (player != null)
+        {
+            // 目标超距则丢失
+            if (Vector2.Distance(player.position, target.transform.position) > maxChaseDistance)
+            {
+                target = null;
             }
         }
 
@@ -80,6 +92,7 @@ public class HomingBullet : MonoBehaviour
         {
             if (e == null || !e.gameObject.activeInHierarchy) continue;
             if (!e.IsTargetable) continue; // ignore dying/blinking bodies
+            if (player != null && Vector2.Distance(player.position, e.transform.position) > maxChaseDistance) continue;
             float d = (e.transform.position - p).sqrMagnitude;
             if (d < best)
             {

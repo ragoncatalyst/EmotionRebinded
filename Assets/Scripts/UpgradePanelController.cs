@@ -78,6 +78,7 @@ public class UpgradePanelController : MonoBehaviour
 
     private bool isPanelOpen;
     private bool isChoosingOptions = false; // true when option buttons are visible
+    private int pendingOpenRequests = 0;   // 等待的再次打开次数
 
     void Start()
     {
@@ -291,6 +292,13 @@ public class UpgradePanelController : MonoBehaviour
     public void OnUpgradeButtonClicked()
     {
         Debug.Log("[UpgradePanelController] 升级按钮被点击，开始升级动画序列");
+        // 若已打开，则把请求计数+1，等待当前关闭时再重新打开
+        if (isPanelOpen)
+        {
+            pendingOpenRequests++;
+            Debug.Log($"[UpgradePanelController] 面板已打开，记录待打开请求: {pendingOpenRequests}");
+            return;
+        }
         
         if (playAnimationOnUpgrade)
         {
@@ -365,6 +373,13 @@ public class UpgradePanelController : MonoBehaviour
     public void OpenPanel()
     {
         Debug.Log("[UpgradePanelController] OpenPanel 被调用");
+        // 防覆盖：若已打开，则计数+1，等待当前轮结束后刷新
+        if (isPanelOpen)
+        {
+            pendingOpenRequests++;
+            Debug.Log($"[UpgradePanelController] OpenPanel: 已打开，累计待打开请求 {pendingOpenRequests}");
+            return;
+        }
         
         if (panelRoot == null) 
         {
@@ -401,28 +416,8 @@ public class UpgradePanelController : MonoBehaviour
             }
         }
 
-        // 先将所有选项设置到屏幕外，避免闪现，并记录初始颜色
-        foreach (var opt in options)
-        {
-            if (opt.rect != null)
-            {
-                // 立即设置到屏幕外的位置，避免闪现
-                Vector2 hiddenPos = new Vector2(opt.targetAnchoredPos.x + opt.rightOffset + optionExtraDistance, opt.targetAnchoredPos.y);
-                opt.rect.anchoredPosition = hiddenPos;
-                
-                // 然后激活选项
-                opt.rect.gameObject.SetActive(true);
-                Debug.Log($"[UpgradePanelController] 选项 {System.Array.IndexOf(options, opt)} 预设到屏幕外位置: {hiddenPos}");
-
-                // 记录并设置按钮初始颜色（确保不透明）
-                var img = opt.rect.GetComponent<Image>();
-                if (img != null)
-                {
-                    opt.originalButtonColor = img.color;
-                    var c = img.color; c.a = 1f; img.color = c;
-                }
-            }
-        }
+        // 准备选项进入（重用函数，便于循环刷新）
+        PrepareOptionsForEnter();
 
         // 检查选项状态
         for (int i = 0; i < options.Length; i++)
@@ -506,6 +501,38 @@ public class UpgradePanelController : MonoBehaviour
         StartCoroutine(CoordinatedEnterAnimation());
     }
 
+    // 将选项预置到屏幕外，并记录/校正按钮颜色，供首次打开或刷新时使用
+    private void PrepareOptionsForEnter()
+    {
+        // 先将所有选项设置到屏幕外，避免闪现，并记录初始颜色
+        foreach (var opt in options)
+        {
+            if (opt.rect != null)
+            {
+                Vector2 hiddenPos = new Vector2(opt.targetAnchoredPos.x + opt.rightOffset + optionExtraDistance, opt.targetAnchoredPos.y);
+                opt.rect.anchoredPosition = hiddenPos;
+                opt.rect.gameObject.SetActive(true);
+                var img = opt.rect.GetComponent<Image>();
+                if (img != null)
+                {
+                    opt.originalButtonColor = img.color;
+                    var c = img.color; c.a = 1f; img.color = c;
+                }
+            }
+        }
+    }
+
+    public void RequestOpenFromLevelUp()
+    {
+        if (isPanelOpen)
+        {
+            pendingOpenRequests++;
+            Debug.Log($"[UpgradePanelController] RequestOpenFromLevelUp: 已打开，累计请求 {pendingOpenRequests}");
+            return;
+        }
+        OnUpgradeButtonClicked();
+    }
+
     // 每次打开面板时调用：根据卡池为三个选项分配技能、绑定点击、刷新文字
     private void AssignRandomOptionsFromPool()
     {
@@ -548,6 +575,20 @@ public class UpgradePanelController : MonoBehaviour
     public void ClosePanel()
     {
         if (panelRoot == null) return;
+        // 如果有待处理的再次打开请求，则不真正关闭，而是刷新一轮
+        if (pendingOpenRequests > 0)
+        {
+            pendingOpenRequests--;
+            Debug.Log($"[UpgradePanelController] ClosePanel 捕获到待打开请求，剩余 {pendingOpenRequests}，立即刷新面板");
+            // 重置流程：隐藏九宫格，重新分配选项并播放进入动画
+            if (gridParent != null) gridParent.gameObject.SetActive(false);
+            AssignRandomOptionsFromPool();
+            isChoosingOptions = true;
+            PrepareOptionsForEnter();
+            StartCoroutine(CoordinatedEnterAnimation());
+            return;
+        }
+
         panelRoot.SetActive(false);
         isPanelOpen = false;
 
