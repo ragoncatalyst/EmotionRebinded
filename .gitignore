@@ -10,6 +10,7 @@ UserSettings/
 .vs/
 Temp/
 Logs/
+Temp/__Backupscenes/
 # Asset Store tools
 Assets/AssetStoreTools*
 
