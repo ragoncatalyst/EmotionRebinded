@@ -47,6 +47,7 @@ public class Enemy : MonoBehaviour
     private bool isDying = false;
     public bool IsDying => isDying;
     public bool IsTargetable { get; private set; } = true;
+    [HideInInspector] public bool grantExpOnDestroy = true; // 外部静默回收时置为false
     
     // Targeting / wander support
     [SerializeField] private float retargetInterval = 3f; // interval to re-acquire cached Player reference

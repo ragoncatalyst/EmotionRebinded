@@ -14,6 +14,8 @@ public class OnEnemyDeathExpGiver : MonoBehaviour
     {
         if (!Application.isPlaying) return;
         if (rewarded) return;
+        var enemy = GetComponent<Enemy>();
+        if (enemy != null && !enemy.grantExpOnDestroy) return; // 静默回收：不计入经验
         var bar = Object.FindObjectOfType<MyGame.UI.ExperienceBar>();
         if (bar != null)
         {

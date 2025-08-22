@@ -28,6 +28,11 @@ public class MonsterSpawnManager : MonoBehaviour
     [SerializeField] private float waveIntervalSeconds = 30f;
     [SerializeField] private int waveCount = 6; // monsters per wave
 
+    [Header("Despawn (far away)")]
+    [SerializeField] private bool enableFarDespawn = true;
+    [SerializeField] private float despawnDistance = 60f;
+    [SerializeField] private float despawnCheckInterval = 3f;
+
     private System.Random rnd;
 
     private void Awake()
@@ -50,6 +55,11 @@ public class MonsterSpawnManager : MonoBehaviour
         if (autoWaveSpawn)
         {
             StartCoroutine(AutoWaveSpawn());
+        }
+
+        if (enableFarDespawn)
+        {
+            StartCoroutine(FarDespawnWatcher());
         }
     }
 
@@ -95,6 +105,28 @@ public class MonsterSpawnManager : MonoBehaviour
         {
             yield return new WaitForSeconds(waveIntervalSeconds);
             SpawnEnemies(waveCount);
+        }
+    }
+
+    private System.Collections.IEnumerator FarDespawnWatcher()
+    {
+        var wait = new WaitForSeconds(despawnCheckInterval);
+        while (true)
+        {
+            yield return wait;
+            if (player == null) continue;
+            Enemy[] enemies = FindObjectsOfType<Enemy>();
+            Vector3 p = player.position;
+            foreach (var e in enemies)
+            {
+                if (e == null) continue;
+                if (Vector2.Distance(e.transform.position, p) > despawnDistance)
+                {
+                    // 静默回收：不计入经验
+                    e.grantExpOnDestroy = false;
+                    Object.Destroy(e.gameObject);
+                }
+            }
         }
     }
 
