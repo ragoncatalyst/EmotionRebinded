@@ -205,8 +205,8 @@ namespace MyGame.UI
                     // 摄像机拉近
                     var camFollow = Camera.main != null ? Camera.main.GetComponent<CameraFollowing>() : null;
                     if (camFollow != null) camFollow.BeginLevelUpZoom();
-                    // 复用原有的升级动画与面板逻辑
-                    upgradePanel.OnUpgradeButtonClicked();
+                    // 尝试打开，如果已打开则累积请求
+                    upgradePanel.RequestOpenFromLevelUp();
                 }
             }
         }
