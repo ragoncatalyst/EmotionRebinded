@@ -35,6 +35,15 @@ public class TerrainInitialization : MonoBehaviour
     [SerializeField] private bool spawnInitialBushesOnce = true; // 初始区域是否生成一次草丛
     private bool initialBushesSpawned = false; // 运行时标记：是否已在初始区域生成过草丛
 
+    [Header("宝箱生成配置")]
+    [SerializeField] private GameObject[] chestPrefabs = new GameObject[1]; // 宝箱prefab集合
+    [SerializeField] [Range(0f, 1f)] private float chestSpawnChance = 0.002f; // 宝箱生成概率（显著低于草丛）
+    [SerializeField] private bool enableChestGeneration = true; // 是否启用宝箱生成
+    [SerializeField] private bool spawnInitialChestsOnce = true; // 初始区域是否生成一次宝箱
+    private bool initialChestsSpawned = false; // 运行时标记：是否已在初始区域生成过宝箱
+    [SerializeField] private int chestMaxInitial = 8; // 初始区域最多宝箱数
+    [SerializeField] private int chestMaxPerExpansion = 4; // 每次扩展区域最多宝箱数
+
     // ===== 分块卸载/还原（性能优化）=====
     [Header("分块卸载（性能优化）")]
     [SerializeField] private bool enableChunkStreaming = true;
@@ -286,6 +295,13 @@ public class TerrainInitialization : MonoBehaviour
         }
 
         // 初始阶段：不在旧区域生成草丛；草丛只在扩展区域生成
+        // 初始区域：只刷一次宝箱（密度远低于草丛）
+        if (enableChestGeneration && spawnInitialChestsOnce && !initialChestsSpawned)
+        {
+            initialChestsSpawned = true;
+            GenerateChestsAcrossInitialMap();
+            if (showDebugInfo) Debug.Log("[TerrainInitialization] 初始区域宝箱已生成一次");
+        }
         
         // 重新初始化地图边界（因为可能重新生成了地形）
         InitializeMapBounds();
@@ -419,6 +435,67 @@ public class TerrainInitialization : MonoBehaviour
             }
         }
         GenerateBushesConsistentDensity(tiles, areaMinWorld, areaMaxWorld);
+    }
+
+    /// <summary>
+    /// 在初始地图范围内随机生成少量宝箱（仅草地且非水域）
+    /// </summary>
+    private void GenerateChestsAcrossInitialMap()
+    {
+        List<Vector2Int> tiles = new List<Vector2Int>(mapWidth * mapHeight);
+        Vector2Int areaMinWorld = new Vector2Int(terrainOffset.x, terrainOffset.y);
+        Vector2Int areaMaxWorld = new Vector2Int(terrainOffset.x + mapWidth - 1, terrainOffset.y + mapHeight - 1);
+        for (int lx = 0; lx < mapWidth; lx++)
+        {
+            for (int ly = 0; ly < mapHeight; ly++)
+            {
+                tiles.Add(new Vector2Int(lx + terrainOffset.x, ly + terrainOffset.y));
+            }
+        }
+        GenerateChestsInArea(tiles, areaMinWorld, areaMaxWorld, chestMaxInitial);
+    }
+
+    /// <summary>
+    /// 在给定区域生成宝箱：只在草地、避开水域，密度<<草丛
+    /// </summary>
+    private void GenerateChestsInArea(List<Vector2Int> tiles, Vector2Int areaMin, Vector2Int areaMax, int hardCap = 0)
+    {
+        if (!enableChestGeneration) return;
+        if (chestPrefabs == null || chestPrefabs.Length == 0) return;
+        if (tiles == null || tiles.Count == 0) return;
+
+        int grassCells = 0;
+        foreach (var t in tiles)
+        {
+            Vector3Int cell = new Vector3Int(t.x, t.y, 0);
+            bool isGrass = grassTilemap != null && grassTilemap.GetTile(cell) != null;
+            bool isWater = waterTilemap != null && waterTilemap.GetTile(cell) != null;
+            if (isGrass && !isWater) grassCells++;
+        }
+        // 使用远小于草丛的概率；上界避免过多
+        float chance = Mathf.Clamp01(chestSpawnChance);
+        int tries = Mathf.Clamp(Mathf.RoundToInt(grassCells * chance), 0, Mathf.Max(1, grassCells / 100));
+        if (hardCap > 0) tries = Mathf.Min(tries, hardCap);
+
+        int spawned = 0;
+        for (int i = 0; i < tries; i++)
+        {
+            var cell = tiles[Random.Range(0, tiles.Count)];
+            Vector3Int wcell = new Vector3Int(cell.x, cell.y, 0);
+            bool isGrass = grassTilemap != null && grassTilemap.GetTile(wcell) != null;
+            bool isWater = waterTilemap != null && waterTilemap.GetTile(wcell) != null;
+            if (!isGrass || isWater) continue;
+
+            var prefab = chestPrefabs[Random.Range(0, chestPrefabs.Length)];
+            if (prefab == null) continue;
+            int lx = cell.x - terrainOffset.x;
+            int ly = cell.y - terrainOffset.y;
+            Vector3 pos = GridToWorld(lx, ly);
+            var inst = Instantiate(prefab, pos, Quaternion.identity);
+            if (terrainParent != null) inst.transform.SetParent(terrainParent);
+            spawned++;
+        }
+        if (showDebugInfo) Debug.Log($"[TerrainInitialization] 宝箱生成（区域 {areaMin}-{areaMax}）: 尝试 {tries}，实际 {spawned}");
     }
 
     /// <summary>
@@ -3689,6 +3766,12 @@ public class TerrainInitialization : MonoBehaviour
         if (enableBushGeneration)
         {
             GenerateBushesConsistentDensity(newTiles, newMapMin, newMapMax);
+        }
+
+        // 扩展区域：生成宝箱（密度低于草丛）
+        if (enableChestGeneration)
+        {
+            GenerateChestsInArea(newTiles, newMapMin, newMapMax, chestMaxPerExpansion);
         }
         
         // 平滑扩展区域的水域边界
