@@ -122,7 +122,7 @@ public class NineSelectionButtons : MonoBehaviour
                 (suffix[1] == '1' || suffix[1] == '2' || suffix[1] == '3'))
             {
                 extractedPosition = suffix;
-                Debug.Log($"[NineSelectionButtons] {currentName} 提取目标位置: '{extractedPosition}'");
+                // Debug.Log($"[NineSelectionButtons] {currentName} 提取目标位置: '{extractedPosition}'");
 
                 // 转换为枚举值
                 NineButtons.Row targetRow = suffix[0] == 'A' ? NineButtons.Row.A :
@@ -135,7 +135,7 @@ public class NineSelectionButtons : MonoBehaviour
 
                 // 查找所有NineButtons组件
                 NineButtons[] allBattleButtons = FindObjectsOfType<NineButtons>();
-                Debug.Log($"[NineSelectionButtons] 找到 {allBattleButtons.Length} 个战斗按键，查找位置 {targetRow}{(int)targetColumn}");
+                // Debug.Log($"[NineSelectionButtons] 找到 {allBattleButtons.Length} 个战斗按键，查找位置 {targetRow}{(int)targetColumn}");
 
                 foreach (var battleButton in allBattleButtons)
                 {
@@ -143,21 +143,21 @@ public class NineSelectionButtons : MonoBehaviour
                     {
                         correspondingBattleButton = battleButton;
                         isMatched = true;
-                        Debug.Log($"[NineSelectionButtons] 位置匹配成功: {currentName} -> {battleButton.gameObject.name} (位置: {targetRow}{(int)targetColumn})");
+                        // Debug.Log($"[NineSelectionButtons] 位置匹配成功: {currentName} -> {battleButton.gameObject.name} (位置: {targetRow}{(int)targetColumn})");
                         return;
                     }
                 }
 
-                Debug.LogWarning($"[NineSelectionButtons] 未找到位置为 {targetRow}{(int)targetColumn} 的战斗按键");
+                // Debug.LogWarning($"[NineSelectionButtons] 未找到位置为 {targetRow}{(int)targetColumn} 的战斗按键");
             }
             else
             {
-                Debug.LogWarning($"[NineSelectionButtons] {currentName} 的后缀 '{suffix}' 格式不正确，应为 A1-C3");
+                // Debug.LogWarning($"[NineSelectionButtons] {currentName} 的后缀 '{suffix}' 格式不正确，应为 A1-C3");
             }
         }
         else
         {
-            Debug.LogError($"[NineSelectionButtons] {currentName} 名称长度不足，无法提取位置信息");
+            // Debug.LogError($"[NineSelectionButtons] {currentName} 名称长度不足，无法提取位置信息");
         }
     }
 
@@ -171,7 +171,7 @@ public class NineSelectionButtons : MonoBehaviour
         if (currentName.Length >= 2)
         {
             string suffix = currentName.Substring(currentName.Length - 2);
-            Debug.Log($"[NineSelectionButtons] {currentName} 尝试名称匹配，后缀: '{suffix}'");
+            // Debug.Log($"[NineSelectionButtons] {currentName} 尝试名称匹配，后缀: '{suffix}'");
 
             NineButtons[] allBattleButtons = FindObjectsOfType<NineButtons>();
 
@@ -181,12 +181,12 @@ public class NineSelectionButtons : MonoBehaviour
                 {
                     correspondingBattleButton = battleButton;
                     isMatched = true;
-                    Debug.Log($"[NineSelectionButtons] 名称匹配成功: {currentName} -> {battleButton.gameObject.name}");
+                    // Debug.Log($"[NineSelectionButtons] 名称匹配成功: {currentName} -> {battleButton.gameObject.name}");
                     return;
                 }
             }
 
-            Debug.LogWarning($"[NineSelectionButtons] 未找到名称匹配的战斗按键（后缀: '{suffix}'）");
+            // Debug.LogWarning($"[NineSelectionButtons] 未找到名称匹配的战斗按键（后缀: '{suffix}'）");
         }
     }
 
@@ -226,7 +226,7 @@ public class NineSelectionButtons : MonoBehaviour
                 skillIdLabel.alignment = TMPro.TextAlignmentOptions.Center;
             }
 
-            Debug.Log($"[NineSelectionButtons] {gameObject.name} 更新显示: 位置={displayPosition}, 按键={displayKeyBind}, 技能={displaySkillId}");
+            // Debug.Log($"[NineSelectionButtons] {gameObject.name} 更新显示: 位置={displayPosition}, 按键={displayKeyBind}, 技能={displaySkillId}");
         }
         else
         {
@@ -253,7 +253,7 @@ public class NineSelectionButtons : MonoBehaviour
                 skillIdLabel.alignment = TMPro.TextAlignmentOptions.Center;
             }
 
-            Debug.LogWarning($"[NineSelectionButtons] {gameObject.name} 未匹配到战斗按钮，显示默认信息");
+            // Debug.LogWarning($"[NineSelectionButtons] {gameObject.name} 未匹配到战斗按钮，显示默认信息");
         }
     }
 
@@ -313,7 +313,7 @@ public class NineSelectionButtons : MonoBehaviour
     public void SetKeyboardInputEnabled(bool enabled)
     {
         enableKeyboardInput = enabled;
-        Debug.Log($"[NineSelectionButtons] {gameObject.name} 键盘输入 {(enabled ? "启用" : "禁用")}");
+        // Debug.Log($"[NineSelectionButtons] {gameObject.name} 键盘输入 {(enabled ? "启用" : "禁用")}");
     }
 
     /// <summary>
@@ -342,7 +342,7 @@ public class NineSelectionButtons : MonoBehaviour
         {
             button.SetKeyboardInputEnabled(true);
         }
-        Debug.Log($"[NineSelectionButtons] 已启用所有 {allSelectionButtons.Length} 个选择按钮的键盘输入");
+        // Debug.Log($"[NineSelectionButtons] 已启用所有 {allSelectionButtons.Length} 个选择按钮的键盘输入");
     }
 
     /// <summary>
@@ -355,7 +355,7 @@ public class NineSelectionButtons : MonoBehaviour
         {
             button.SetKeyboardInputEnabled(false);
         }
-        Debug.Log($"[NineSelectionButtons] 已禁用所有 {allSelectionButtons.Length} 个选择按钮的键盘输入");
+        // Debug.Log($"[NineSelectionButtons] 已禁用所有 {allSelectionButtons.Length} 个选择按钮的键盘输入");
     }
 
     /// <summary>
@@ -363,11 +363,11 @@ public class NineSelectionButtons : MonoBehaviour
     /// </summary>
     private void OnSelectionButtonClicked()
     {
-        Debug.Log($"[NineSelectionButtons] {gameObject.name} 被点击，位置: {displayPosition}");
+        // Debug.Log($"[NineSelectionButtons] {gameObject.name} 被点击，位置: {displayPosition}");
 
         if (correspondingBattleButton == null)
         {
-            Debug.LogError($"[NineSelectionButtons] {gameObject.name} 没有对应的战斗按钮，无法绑定技能");
+            // Debug.LogError($"[NineSelectionButtons] {gameObject.name} 没有对应的战斗按钮，无法绑定技能");
             return;
         }
 
@@ -375,7 +375,7 @@ public class NineSelectionButtons : MonoBehaviour
         UpgradePanelController upgradePanel = FindObjectOfType<UpgradePanelController>();
         if (upgradePanel == null)
         {
-            Debug.LogError("[NineSelectionButtons] 未找到UpgradePanelController，无法获取选中的技能");
+            // Debug.LogError("[NineSelectionButtons] 未找到UpgradePanelController，无法获取选中的技能");
             return;
         }
 
@@ -383,7 +383,7 @@ public class NineSelectionButtons : MonoBehaviour
         string selectedSkillId = GetCurrentSelectedSkill();
         if (string.IsNullOrEmpty(selectedSkillId))
         {
-            Debug.LogWarning("[NineSelectionButtons] 没有选中的技能，请先在升级面板选择技能");
+            // Debug.LogWarning("[NineSelectionButtons] 没有选中的技能，请先在升级面板选择技能");
             return;
         }
 
@@ -398,7 +398,7 @@ public class NineSelectionButtons : MonoBehaviour
 
         // 将技能绑定到对应的战斗按钮
         correspondingBattleButton.SetSkill(selectedSkillId, correspondingBattleButton.keyBind);
-        Debug.Log($"[NineSelectionButtons] 技能 {selectedSkillId} 已绑定到位置 {displayPosition}");
+        // Debug.Log($"[NineSelectionButtons] 技能 {selectedSkillId} 已绑定到位置 {displayPosition}");
 
         // 清除待绑定的技能ID
         GridSelectBinder.ClearPendingSkillId();
@@ -421,6 +421,14 @@ public class NineSelectionButtons : MonoBehaviour
     }
 
     /// <summary>
+    /// 供外部（如串口桥）调用的公开触发方法
+    /// </summary>
+    public void TriggerSelect()
+    {
+        OnSelectionButtonClicked();
+    }
+
+    /// <summary>
     /// 获取当前选中的技能ID（从GridSelectBinder）
     /// </summary>
     private string GetCurrentSelectedSkill()
@@ -429,12 +437,12 @@ public class NineSelectionButtons : MonoBehaviour
         
         if (!string.IsNullOrEmpty(pendingSkillId))
         {
-            Debug.Log($"[NineSelectionButtons] 获取到待绑定的技能ID: {pendingSkillId}");
+            // Debug.Log($"[NineSelectionButtons] 获取到待绑定的技能ID: {pendingSkillId}");
             return pendingSkillId;
         }
         else
         {
-            Debug.LogWarning("[NineSelectionButtons] 没有待绑定的技能ID，请先在升级面板选择技能");
+            // Debug.LogWarning("[NineSelectionButtons] 没有待绑定的技能ID，请先在升级面板选择技能");
             return "";
         }
     }
@@ -481,7 +489,7 @@ public class NineSelectionButtons : MonoBehaviour
     [ContextMenu("测试位置匹配")]
     public void TestPositionMatch()
     {
-        Debug.Log($"[NineSelectionButtons] 测试位置匹配 {gameObject.name}");
+        // Debug.Log($"[NineSelectionButtons] 测试位置匹配 {gameObject.name}");
         correspondingBattleButton = null;
         isMatched = false;
         AutoMatchByPosition();
@@ -494,7 +502,7 @@ public class NineSelectionButtons : MonoBehaviour
     [ContextMenu("测试名称匹配")]
     public void TestNameMatch()
     {
-        Debug.Log($"[NineSelectionButtons] 测试名称匹配 {gameObject.name}");
+        // Debug.Log($"[NineSelectionButtons] 测试名称匹配 {gameObject.name}");
         correspondingBattleButton = null;
         isMatched = false;
         AutoMatchByName();
@@ -507,7 +515,7 @@ public class NineSelectionButtons : MonoBehaviour
     [ContextMenu("更新显示")]
     public void TestUpdateDisplay()
     {
-        Debug.Log($"[NineSelectionButtons] 手动更新显示 {gameObject.name}");
+        // Debug.Log($"[NineSelectionButtons] 手动更新显示 {gameObject.name}");
         UpdateDisplay();
     }
 
@@ -517,7 +525,7 @@ public class NineSelectionButtons : MonoBehaviour
     [ContextMenu("测试技能绑定")]
     public void TestSkillBinding()
     {
-        Debug.Log($"[NineSelectionButtons] 手动测试技能绑定 {gameObject.name}");
+        // Debug.Log($"[NineSelectionButtons] 手动测试技能绑定 {gameObject.name}");
         OnSelectionButtonClicked();
     }
 
@@ -528,16 +536,16 @@ public class NineSelectionButtons : MonoBehaviour
     public void TestKeyboardInput()
     {
         KeyCode targetKey = GetTargetKey();
-        Debug.Log($"[NineSelectionButtons] {gameObject.name} 键盘输入测试:");
-        Debug.Log($"  - 目标按键: {targetKey}");
-        Debug.Log($"  - 键盘输入启用: {enableKeyboardInput}");
-        Debug.Log($"  - 匹配状态: {isMatched}");
-        Debug.Log($"  - 对应战斗按钮: {(correspondingBattleButton != null ? correspondingBattleButton.gameObject.name : "null")}");
+        // Debug.Log($"[NineSelectionButtons] {gameObject.name} 键盘输入测试:");
+        // Debug.Log($"  - 目标按键: {targetKey}");
+        // Debug.Log($"  - 键盘输入启用: {enableKeyboardInput}");
+        // Debug.Log($"  - 匹配状态: {isMatched}");
+        // Debug.Log($"  - 对应战斗按钮: {(correspondingBattleButton != null ? correspondingBattleButton.gameObject.name : "null")}");
         
         // 模拟键盘输入
         if (correspondingBattleButton != null)
         {
-            Debug.Log($"[NineSelectionButtons] 模拟键盘输入 {targetKey}");
+            // Debug.Log($"[NineSelectionButtons] 模拟键盘输入 {targetKey}");
             OnSelectionButtonClicked();
         }
     }

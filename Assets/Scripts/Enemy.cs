@@ -136,7 +136,7 @@ public class Enemy : MonoBehaviour
         bool hasValidTarget = target != null && (!onlyChasePlayer || (target != null && target.CompareTag("Player")));
         if (hasValidTarget)
         {
-            float dist = Vector2.Distance(transform.position, target.position);
+        float dist = Vector2.Distance(transform.position, target.position);
             if (dist > stopDistance)
             {
                 Vector2 desiredDirection = (target.position - transform.position).normalized;

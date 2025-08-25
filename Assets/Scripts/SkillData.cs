@@ -38,7 +38,7 @@ public static class SkillDatabase
         LoadDefaultSkills();
 
         isLoaded = true;
-        Debug.Log($"[SkillDatabase] 已加载 {skillDict.Count} 个技能");
+        // Debug.Log($"[SkillDatabase] 已加载 {skillDict.Count} 个技能");
     }
 
     /// <summary>

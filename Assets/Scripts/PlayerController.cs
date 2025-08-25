@@ -37,7 +37,7 @@ public class PlayerController : MonoBehaviour
         ConfigurePhysicsComponents();
         if (enableShadow) SetupShadow(); else CleanupShadow();
         
-        Debug.Log($"[PlayerController] 玩家初始化完成，位置: {transform.position}, 使用物理移动: {usePhysicsMovement}");
+        // Debug.Log($"[PlayerController] 玩家初始化完成，位置: {transform.position}, 使用物理移动: {usePhysicsMovement}");
     }
 
     private void LateUpdate()
@@ -88,7 +88,7 @@ public class PlayerController : MonoBehaviour
                 rb2d.interpolation = RigidbodyInterpolation2D.None; // 关闭插值
                 rb2d.sleepMode = RigidbodySleepMode2D.StartAwake;
                 
-                Debug.Log("[PlayerController] 已配置为运动学刚体，使用Transform移动");
+                // Debug.Log("[PlayerController] 已配置为运动学刚体，使用Transform移动");
             }
             else
             {
@@ -101,7 +101,7 @@ public class PlayerController : MonoBehaviour
                 rb2d.interpolation = RigidbodyInterpolation2D.Interpolate;
                 rb2d.sleepMode = RigidbodySleepMode2D.NeverSleep;
                 
-                Debug.Log("[PlayerController] 已配置为动态刚体，使用物理移动");
+                // Debug.Log("[PlayerController] 已配置为动态刚体，使用物理移动");
             }
         }
         
@@ -109,7 +109,7 @@ public class PlayerController : MonoBehaviour
         {
             // 设置碰撞体为触发器，避免物理碰撞
             playerCollider.isTrigger = true;
-            Debug.Log("[PlayerController] 玩家碰撞体设置为触发器");
+            // Debug.Log("[PlayerController] 玩家碰撞体设置为触发器");
         }
     }
 
@@ -146,7 +146,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     public void ExecuteSkill(string skillId)
     {
-        Debug.Log($"[PlayerController] 执行技能 {skillId}");
+        // Debug.Log($"[PlayerController] 执行技能 {skillId}");
 
         // 统一的移动逻辑，支持持续移动和单次移动
         if (IsMovementSkill(skillId))
@@ -167,7 +167,7 @@ public class PlayerController : MonoBehaviour
                     CastNovaBlast();
                     break;
                 default:
-                    Debug.Log($"[技能{skillId}] 未知技能或未绑定");
+                    // Debug.Log($"[技能{skillId}] 未知技能或未绑定");
                     break;
             }
         }
@@ -186,7 +186,7 @@ public class PlayerController : MonoBehaviour
     {
         if (homingBulletPrefab == null)
         {
-            Debug.LogWarning("[PlayerController] Homing bullet prefab not assigned.");
+            // Debug.LogWarning("[PlayerController] Homing bullet prefab not assigned.");
             return;
         }
         var go = Instantiate(homingBulletPrefab, transform.position, Quaternion.identity);
@@ -215,7 +215,7 @@ public class PlayerController : MonoBehaviour
         ps.segmentLength = Mathf.Max(piercingMaxLength / 50f, 0.5f);
         ps.thickness = piercingThickness;
         ps.SetDirection(dir);
-        Debug.Log($"[PlayerController] PiercingShot spawn dir={dir}, maxLen={ps.maxLength}, grow={ps.growSpeed}, segLen={ps.segmentLength}");
+        // Debug.Log($"[PlayerController] PiercingShot spawn dir={dir}, maxLen={ps.maxLength}, grow={ps.growSpeed}, segLen={ps.segmentLength}");
     }
 
     private void CastNovaBlast()
@@ -297,7 +297,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            Debug.Log($"[PlayerController] 无法移动到 {targetPosition}，地形不可通行");
+            // Debug.Log($"[PlayerController] 无法移动到 {targetPosition}，地形不可通行");
         }
     }
     

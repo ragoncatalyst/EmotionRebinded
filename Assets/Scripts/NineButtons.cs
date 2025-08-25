@@ -154,10 +154,10 @@ namespace MyGame.UI
                 if (currentPressed != isPressed)
                 {
                     isPressed = currentPressed;
-                    Debug.Log($"[NineButtons] {gameObject.name} 键盘按键 {keyBind} 状态变化: {(isPressed ? "按下" : "释放")}");
-                    Debug.Log($"[NineButtons] 即将调用 ApplyPressedEffect({isPressed})");
+                    // Debug.Log($"[NineButtons] {gameObject.name} 键盘按键 {keyBind} 状态变化: {(isPressed ? "按下" : "释放")}");
+                    // Debug.Log($"[NineButtons] 即将调用 ApplyPressedEffect({isPressed})");
                     ApplyPressedEffect(isPressed);
-                    Debug.Log($"[NineButtons] ApplyPressedEffect({isPressed}) 调用完成");
+                    // Debug.Log($"[NineButtons] ApplyPressedEffect({isPressed}) 调用完成");
                 }
 
                 // 对于移动技能，使用按住逻辑；对于其他技能，使用按下逻辑
@@ -172,15 +172,14 @@ namespace MyGame.UI
                 {
                     if (Input.GetKeyDown(keyBind))
                     {
-                        Debug.Log($"[NineButtons] {gameObject.name} 非移动技能按下: {keyBind}");
+                        // Debug.Log($"[NineButtons] {gameObject.name} 非移动技能按下: {keyBind}");
                         TryPressOrQueue();
                     }
                 }
             }
             else if (listenKeyboard && (keyBind == KeyCode.None || skillId == "00"))
             {
-                // 调试信息：为什么不监听键盘
-                Debug.LogWarning($"[NineButtons] {gameObject.name} 不监听键盘: keyBind={keyBind}, skillId={skillId}, listenKeyboard={listenKeyboard}");
+                // Debug.LogWarning($"[NineButtons] {gameObject.name} 不监听键盘: keyBind={keyBind}, skillId={skillId}, listenKeyboard={listenKeyboard}");
             }
 
             if (isOnCooldown)
@@ -242,7 +241,7 @@ namespace MyGame.UI
         public void Press()
         {
             if (isOnCooldown || skillId == "00") return;
-            Debug.Log($"[NineButtons] Click: {row}{(int)column} | Key:{keyBind} | Skill:{skillId}");
+            // Debug.Log($"[NineButtons] Click: {row}{(int)column} | Key:{keyBind} | Skill:{skillId}");
             
             // 应用按下效果（如果是鼠标点击才使用短暂tint；键盘按下已由 ApplyPressedEffect 控制，避免双重变灰）
             if (!isPressed)
@@ -256,7 +255,7 @@ namespace MyGame.UI
                 StartCooldown();
         }
 
-        private void TryPressOrQueue()
+        public void TryPressOrQueue()
         {
             // 冷却中：若进入最后0.5秒则只记录，不执行也不反馈
             if (isOnCooldown)
@@ -290,7 +289,7 @@ namespace MyGame.UI
             }
             else
             {
-                Debug.LogError("[NineButtons] 未找到PlayerController");
+                // Debug.LogError("[NineButtons] 未找到PlayerController");
             }
         }
 
@@ -316,7 +315,7 @@ namespace MyGame.UI
             }
             else
             {
-                Debug.LogWarning("[NineButtons] 未找到PlayerController，无法执行技能");
+                // Debug.LogWarning("[NineButtons] 未找到PlayerController，无法执行技能");
             }
         }
 
@@ -400,7 +399,7 @@ namespace MyGame.UI
             EnsureOpaqueVisuals();
             UpdateLabels(); // 确保标签正确更新
             
-            Debug.Log($"[NineButtons] {gameObject.name} ApplyBoundState: skillId={skillId}, keyBind={keyBind}, listenKeyboard={listenKeyboard}");
+            // Debug.Log($"[NineButtons] {gameObject.name} ApplyBoundState: skillId={skillId}, keyBind={keyBind}, listenKeyboard={listenKeyboard}");
         }
 
         private void RefreshButtonVisualState()
@@ -453,8 +452,8 @@ namespace MyGame.UI
         /// </summary>
         private void ApplyPressedEffect(bool pressed)
         {
-            Debug.Log($"[NineButtons] === ApplyPressedEffect({pressed}) 开始 ===");
-            Debug.Log($"[NineButtons] iconImage: {(iconImage != null ? "存在" : "null")}");
+            // Debug.Log($"[NineButtons] === ApplyPressedEffect({pressed}) 开始 ===");
+            // Debug.Log($"[NineButtons] iconImage: {(iconImage != null ? "存在" : "null")}");
             
             if (pressed)
             {
@@ -466,12 +465,12 @@ namespace MyGame.UI
                 }
                 else
                 {
-                    Debug.LogWarning($"[NineButtons] {gameObject.name} iconImage 为空！无法变灰");
+                    // Debug.LogWarning($"[NineButtons] {gameObject.name} iconImage 为空！无法变灰");
                 }
                 
 
                 
-                Debug.Log($"[NineButtons] {gameObject.name} 键盘按下效果已应用");
+                // Debug.Log($"[NineButtons] {gameObject.name} 键盘按下效果已应用");
             }
             else
             {
@@ -484,10 +483,10 @@ namespace MyGame.UI
                 
 
                 
-                Debug.Log($"[NineButtons] {gameObject.name} 键盘释放，颜色已恢复");
+                // Debug.Log($"[NineButtons] {gameObject.name} 键盘释放，颜色已恢复");
             }
             
-            Debug.Log($"[NineButtons] === ApplyPressedEffect({pressed}) 结束 ===");
+            // Debug.Log($"[NineButtons] === ApplyPressedEffect({pressed}) 结束 ===");
         }
 
         /// <summary>
@@ -503,7 +502,7 @@ namespace MyGame.UI
             {
                 Color pressed = iconPressedColor; pressed.a = 1f;
                 iconImage.color = pressed;
-                Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标变灰效果已应用");
+                // Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标变灰效果已应用");
             }
             
             // 等待短暂时间
@@ -513,7 +512,7 @@ namespace MyGame.UI
             if (iconImage != null && !isPressed)
             {
                 iconImage.color = originalIconColorTemp;
-                Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标颜色已恢复");
+                // Debug.Log($"[NineButtons] {gameObject.name} 鼠标点击图标颜色已恢复");
             }
         }
 
@@ -653,7 +652,7 @@ namespace MyGame.UI
             UpdateSkillInfo();
             ApplyBoundState();
             UpdateLabels();
-            Debug.Log($"[NineButtons] {name} 已手动设置为C2按钮（向下移动），CD: {cooldownSeconds}秒");
+            // Debug.Log($"[NineButtons] {name} 已手动设置为C2按钮（向下移动），CD: {cooldownSeconds}秒");
         }
 
         private void UpdateLabels()
@@ -683,7 +682,7 @@ namespace MyGame.UI
                     skillIdText.text = info != null ? info.name : skillId;
                 }
                 skillIdText.alignment = TextAlignmentOptions.Center;
-                Debug.Log($"[NineButtons] {gameObject.name} 更新技能名称显示: skillId={skillId}, 显示文本='{skillIdText.text}'");
+                // Debug.Log($"[NineButtons] {gameObject.name} 更新技能名称显示: skillId={skillId}, 显示文本='{skillIdText.text}'");
             }
         }
 
@@ -692,14 +691,14 @@ namespace MyGame.UI
         [ContextMenu("测试鼠标点击效果")]
         private void TestMouseClickEffect()
         {
-            Debug.Log($"[NineButtons] 测试鼠标点击效果: {gameObject.name}");
+            // Debug.Log($"[NineButtons] 测试鼠标点击效果: {gameObject.name}");
             StartCoroutine(MouseClickTintEffect());
         }
 
         [ContextMenu("测试键盘按下效果")]
         private void TestKeyboardPressEffect()
         {
-            Debug.Log($"[NineButtons] 测试键盘按下效果: {gameObject.name}");
+            // Debug.Log($"[NineButtons] 测试键盘按下效果: {gameObject.name}");
             ApplyPressedEffect(true);
             // 2秒后恢复
             StartCoroutine(TestKeyboardReleaseEffect());
@@ -708,67 +707,67 @@ namespace MyGame.UI
         [ContextMenu("测试键盘输入检测")]
         private void TestKeyboardInput()
         {
-            Debug.Log($"[NineButtons] === 键盘输入检测测试 ===");
-            Debug.Log($"[NineButtons] 按钮: {gameObject.name}");
-            Debug.Log($"[NineButtons] keyBind: {keyBind}");
-            Debug.Log($"[NineButtons] skillId: {skillId}");
-            Debug.Log($"[NineButtons] shouldListenKeyboard: {(keyBind != KeyCode.None && skillId != "00")}");
-            Debug.Log($"[NineButtons] IsMovementSkill({skillId}): {IsMovementSkill(skillId)}");
-            Debug.Log($"[NineButtons] 当前按键状态: {Input.GetKey(keyBind)}");
-            Debug.Log($"[NineButtons] 当前按键按下: {Input.GetKeyDown(keyBind)}");
+            // Debug.Log($"[NineButtons] === 键盘输入检测测试 ===");
+            // Debug.Log($"[NineButtons] 按钮: {gameObject.name}");
+            // Debug.Log($"[NineButtons] keyBind: {keyBind}");
+            // Debug.Log($"[NineButtons] skillId: {skillId}");
+            // Debug.Log($"[NineButtons] shouldListenKeyboard: {(keyBind != KeyCode.None && skillId != "00")}");
+            // Debug.Log($"[NineButtons] IsMovementSkill({skillId}): {IsMovementSkill(skillId)}");
+            // Debug.Log($"[NineButtons] 当前按键状态: {Input.GetKey(keyBind)}");
+            // Debug.Log($"[NineButtons] 当前按键按下: {Input.GetKeyDown(keyBind)}");
         }
 
         [ContextMenu("显示按钮状态")]
         private void ShowButtonStatus()
         {
-            Debug.Log($"[NineButtons] 按钮状态 {gameObject.name}:");
-            Debug.Log($"  - skillId: {skillId}");
-            Debug.Log($"  - keyBind: {keyBind}");
-            Debug.Log($"  - listenKeyboard: {listenKeyboard}");
-            Debug.Log($"  - isPressed: {isPressed}");
+            // Debug.Log($"[NineButtons] 按钮状态 {gameObject.name}:");
+            // Debug.Log($"  - skillId: {skillId}");
+            // Debug.Log($"  - keyBind: {keyBind}");
+            // Debug.Log($"  - listenKeyboard: {listenKeyboard}");
+            // Debug.Log($"  - isPressed: {isPressed}");
 
-            Debug.Log($"  - iconImage: {(iconImage != null ? iconImage.color.ToString() : "null")}");
-            Debug.Log($"  - iconImage GameObject: {(iconImage != null ? iconImage.gameObject.name : "null")}");
-            Debug.Log($"  - shouldListenKeyboard: {(keyBind != KeyCode.None && skillId != "00")}");
+            // Debug.Log($"  - iconImage: {(iconImage != null ? iconImage.color.ToString() : "null")}");
+            // Debug.Log($"  - iconImage GameObject: {(iconImage != null ? iconImage.gameObject.name : "null")}");
+            // Debug.Log($"  - shouldListenKeyboard: {(keyBind != KeyCode.None && skillId != "00")}");
         }
 
         [ContextMenu("测试图标变灰")]
         private void TestIconGray()
         {
-            Debug.Log($"[NineButtons] 测试图标变灰: {gameObject.name}");
+            // Debug.Log($"[NineButtons] 测试图标变灰: {gameObject.name}");
             if (iconImage != null)
             {
                 Color oldColor = iconImage.color;
                 iconImage.color = Color.red; // 先变红测试是否有效果
-                Debug.Log($"[NineButtons] 图标颜色测试：{oldColor} -> {iconImage.color}");
+                // Debug.Log($"[NineButtons] 图标颜色测试：{oldColor} -> {iconImage.color}");
                 
                 // 2秒后恢复
                 StartCoroutine(TestRestoreIconColor(oldColor));
             }
             else
             {
-                Debug.LogError($"[NineButtons] {gameObject.name} iconImage 为空！请在Inspector中分配");
+                // Debug.LogError($"[NineButtons] {gameObject.name} iconImage 为空！请在Inspector中分配");
             }
         }
 
         [ContextMenu("测试图标变灰效果")]
         private void TestIconGrayEffect()
         {
-            Debug.Log($"[NineButtons] 测试实际的图标变灰效果: {gameObject.name}");
+            // Debug.Log($"[NineButtons] 测试实际的图标变灰效果: {gameObject.name}");
             if (iconImage != null)
             {
                 Color oldColor = iconImage.color;
                 // 使用和ApplyPressedEffect相同的颜色
                 iconImage.color = new Color(0.5f, 0.5f, 0.5f, 1f);
-                Debug.Log($"[NineButtons] 图标变灰测试：{oldColor} -> {iconImage.color}");
-                Debug.Log($"[NineButtons] 原始颜色 originalIconColor: {originalIconColor}");
+                // Debug.Log($"[NineButtons] 图标变灰测试：{oldColor} -> {iconImage.color}");
+                // Debug.Log($"[NineButtons] 原始颜色 originalIconColor: {originalIconColor}");
                 
                 // 3秒后恢复
                 StartCoroutine(TestRestoreIconColorToOriginal());
             }
             else
             {
-                Debug.LogError($"[NineButtons] {gameObject.name} iconImage 为空！");
+                // Debug.LogError($"[NineButtons] {gameObject.name} iconImage 为空！");
             }
         }
 
@@ -778,7 +777,7 @@ namespace MyGame.UI
             if (iconImage != null)
             {
                 iconImage.color = originalIconColor;
-                Debug.Log($"[NineButtons] 图标颜色已恢复到原始颜色: {originalIconColor}");
+                // Debug.Log($"[NineButtons] 图标颜色已恢复到原始颜色: {originalIconColor}");
             }
         }
 
@@ -788,7 +787,7 @@ namespace MyGame.UI
             if (iconImage != null)
             {
                 iconImage.color = originalColor;
-                Debug.Log($"[NineButtons] 图标颜色已恢复: {originalColor}");
+                // Debug.Log($"[NineButtons] 图标颜色已恢复: {originalColor}");
             }
         }
 

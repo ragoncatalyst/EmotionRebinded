@@ -34,6 +34,7 @@ public class DynamicSorting : MonoBehaviour
     
     [Header("物体类型快速配置")]
     [SerializeField] private ObjectType objectType = ObjectType.Custom;      // 物体类型（用于快速配置参考位置）
+    [SerializeField] private bool enableDebugLogs = false;                   // 是否输出配置日志
     
     private SpriteRenderer spriteRenderer;
     private int lastSortingOrder = int.MinValue;
@@ -45,12 +46,12 @@ public class DynamicSorting : MonoBehaviour
         DynamicSorting[] sortingComponents = GetComponents<DynamicSorting>();
         if (sortingComponents.Length > 1)
         {
-            Debug.LogWarning($"[DynamicSorting] {gameObject.name} 有多个DynamicSorting组件！建议只保留一个。");
+            // Debug.LogWarning($"[DynamicSorting] {gameObject.name} 有多个DynamicSorting组件！建议只保留一个。");
             
             // 如果这不是第一个组件，销毁自己
             if (sortingComponents[0] != this)
             {
-                Debug.Log($"[DynamicSorting] 销毁重复的DynamicSorting组件");
+                // Debug.Log($"[DynamicSorting] 销毁重复的DynamicSorting组件");
                 Destroy(this);
                 return;
             }
@@ -59,7 +60,7 @@ public class DynamicSorting : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
         if (spriteRenderer == null)
         {
-            Debug.LogError($"[DynamicSorting] {gameObject.name} 缺少 SpriteRenderer 组件！");
+            // Debug.LogError($"[DynamicSorting] {gameObject.name} 缺少 SpriteRenderer 组件！");
         }
     }
     
@@ -104,7 +105,7 @@ public class DynamicSorting : MonoBehaviour
         // 如果计算值被限制了，输出警告
         if (calculatedSortingOrder != newSortingOrder)
         {
-            Debug.LogWarning($"[DynamicSorting] {gameObject.name} 排序层级被限制: 计算值{calculatedSortingOrder} → 限制后{newSortingOrder} (Y:{sortingPosition.y:F2})");
+            // Debug.LogWarning($"[DynamicSorting] {gameObject.name} 排序层级被限制: 计算值{calculatedSortingOrder} → 限制后{newSortingOrder} (Y:{sortingPosition.y:F2})");
         }
         
         // 只在排序层级改变时更新，避免不必要的性能消耗
@@ -161,29 +162,29 @@ public class DynamicSorting : MonoBehaviour
             case ObjectType.Player:
                 baseSortingOrder = 100;   // 正常基础层级
                 // 保留 Inspector 中的 sortingOffset，不再强制为 (0,0)
-                Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
+                if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Enemy:
                 baseSortingOrder = 80;    // 略低于Player
                 // 保留 Inspector 配置，不再强制改写 Y 偏移
-                Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Enemy类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+                if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Enemy类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Bush:
                 baseSortingOrder = 50;    // 低于Player，确保能被Player遮挡，但能遮挡Player
                 // 保留 Inspector 配置，不再强制改写 Y 偏移
-                Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Bush类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+                if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Bush类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Building:
                 baseSortingOrder = 20;    // 最低基础层级
                 // 保留 Inspector 配置，不再强制改写 Y 偏移
-                Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Building类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+                if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Building类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Custom:
-                Debug.Log($"[DynamicSorting] {gameObject.name} 设置为Custom类型，保持当前配置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+                if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 设置为Custom类型，保持当前配置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
         }
         
@@ -203,17 +204,17 @@ public class DynamicSorting : MonoBehaviour
             int calculatedOrder = baseSortingOrder - Mathf.RoundToInt(sortingPos.y * sortingPrecision);
             int clampedOrder = Mathf.Clamp(calculatedOrder, minSortingOrder, maxSortingOrder);
             
-            Debug.Log($"[DynamicSorting] === {gameObject.name} 排序信息 ===");
-            Debug.Log($"[DynamicSorting] GameObject Y坐标: {transform.position.y:F3}");
-            Debug.Log($"[DynamicSorting] 排序偏移量: {sortingOffset}");
-            Debug.Log($"[DynamicSorting] 排序计算Y坐标: {sortingPos.y:F3}");
-            Debug.Log($"[DynamicSorting] 基础排序层级: {baseSortingOrder}");
-            Debug.Log($"[DynamicSorting] 计算排序层级: {calculatedOrder}");
-            Debug.Log($"[DynamicSorting] 限制后排序层级: {clampedOrder}");
-            Debug.Log($"[DynamicSorting] 当前排序层级: {spriteRenderer.sortingOrder}");
-            Debug.Log($"[DynamicSorting] 排序精度: {sortingPrecision}");
-            Debug.Log($"[DynamicSorting] 排序范围: [{minSortingOrder}, {maxSortingOrder}]");
-            Debug.Log($"[DynamicSorting] 每帧更新: {updateEveryFrame}");
+            // Debug.Log($"[DynamicSorting] === {gameObject.name} 排序信息 ===");
+            // Debug.Log($"[DynamicSorting] GameObject Y坐标: {transform.position.y:F3}");
+            // Debug.Log($"[DynamicSorting] 排序偏移量: {sortingOffset}");
+            // Debug.Log($"[DynamicSorting] 排序计算Y坐标: {sortingPos.y:F3}");
+            // Debug.Log($"[DynamicSorting] 基础排序层级: {baseSortingOrder}");
+            // Debug.Log($"[DynamicSorting] 计算排序层级: {calculatedOrder}");
+            // Debug.Log($"[DynamicSorting] 限制后排序层级: {clampedOrder}");
+            // Debug.Log($"[DynamicSorting] 当前排序层级: {spriteRenderer.sortingOrder}");
+            // Debug.Log($"[DynamicSorting] 排序精度: {sortingPrecision}");
+            // Debug.Log($"[DynamicSorting] 排序范围: [{minSortingOrder}, {maxSortingOrder}]");
+            // Debug.Log($"[DynamicSorting] 每帧更新: {updateEveryFrame}");
             
             // 查找并比较Player和Bush
             CompareWithOtherObjects();
@@ -226,7 +227,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("测试高Y坐标排序")]
     public void TestHighYSorting()
     {
-        Debug.Log($"[DynamicSorting] === {gameObject.name} 高Y坐标测试 ===");
+        // Debug.Log($"[DynamicSorting] === {gameObject.name} 高Y坐标测试 ===");
         
         float[] testYValues = { 0f, 1f, 1.5f, 2f, 3f, 5f, 10f };
         
@@ -238,7 +239,7 @@ public class DynamicSorting : MonoBehaviour
             int clampedOrder = Mathf.Clamp(calculatedOrder, minSortingOrder, maxSortingOrder);
             
             string status = (calculatedOrder == clampedOrder) ? "正常" : "被限制";
-            Debug.Log($"[DynamicSorting] Y={testY:F1} → 计算值:{calculatedOrder} → 最终值:{clampedOrder} ({status})");
+            // Debug.Log($"[DynamicSorting] Y={testY:F1} → 计算值:{calculatedOrder} → 最终值:{clampedOrder} ({status})");
         }
     }
     
@@ -248,7 +249,7 @@ public class DynamicSorting : MonoBehaviour
     private void CompareWithOtherObjects()
     {
         DynamicSorting[] allSorting = FindObjectsOfType<DynamicSorting>();
-        Debug.Log($"[DynamicSorting] === 与其他对象排序比较 ===");
+        // Debug.Log($"[DynamicSorting] === 与其他对象排序比较 ===");
         
         foreach (var other in allSorting)
         {
@@ -260,9 +261,9 @@ public class DynamicSorting : MonoBehaviour
                 string relationship = spriteRenderer.sortingOrder > otherSortingOrder ? "在前面" : 
                                     spriteRenderer.sortingOrder < otherSortingOrder ? "在后面" : "同层级";
                 
-                Debug.Log($"[DynamicSorting] {gameObject.name} 相对 {other.gameObject.name}: {relationship}");
-                Debug.Log($"[DynamicSorting]   - {gameObject.name}: Y={GetSortingPosition().y:F2}, Sort={spriteRenderer.sortingOrder}");
-                Debug.Log($"[DynamicSorting]   - {other.gameObject.name}: Y={otherSortingPos.y:F2}, Sort={otherSortingOrder}");
+                // Debug.Log($"[DynamicSorting] {gameObject.name} 相对 {other.gameObject.name}: {relationship}");
+                // Debug.Log($"[DynamicSorting]   - {gameObject.name}: Y={GetSortingPosition().y:F2}, Sort={spriteRenderer.sortingOrder}");
+                // Debug.Log($"[DynamicSorting]   - {other.gameObject.name}: Y={otherSortingPos.y:F2}, Sort={otherSortingOrder}");
             }
         }
     }
@@ -277,7 +278,7 @@ public class DynamicSorting : MonoBehaviour
         // 不再强制写入 sortingOffset，保留 Inspector 设置
         showSortingPoint = true;
         UpdateSortingOrder();
-        Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Player排序设置 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
+        // Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Player排序设置 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
     }
     
     /// <summary>
@@ -290,7 +291,7 @@ public class DynamicSorting : MonoBehaviour
         // 不再强制写入 sortingOffset，保留 Inspector 设置
         showSortingPoint = true;
         UpdateSortingOrder();
-        Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Bush排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+        // Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Bush排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
     }
     
     /// <summary>
@@ -303,7 +304,7 @@ public class DynamicSorting : MonoBehaviour
         // 不再强制写入 sortingOffset，保留 Inspector 设置
         showSortingPoint = true;
         UpdateSortingOrder();
-        Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Enemy排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+        // Debug.Log($"[DynamicSorting] {gameObject.name} 已配置为Enemy排序设置 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
     }
     
     /// <summary>
@@ -312,7 +313,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("修复Player高Y坐标消失问题")]
     public void FixPlayerHighYDisappearance()
     {
-        Debug.Log($"[DynamicSorting] 修复Player高Y坐标消失问题...");
+        // Debug.Log($"[DynamicSorting] 修复Player高Y坐标消失问题...");
         
         // 设置绝对安全的参数，确保永远不会被地面遮挡
         baseSortingOrder = 100;   // 保持正常基础层级
@@ -327,12 +328,12 @@ public class DynamicSorting : MonoBehaviour
         int calculatedOrder = baseSortingOrder - Mathf.RoundToInt(sortingPos.y * sortingPrecision);
         int finalOrder = Mathf.Clamp(calculatedOrder, minSortingOrder, maxSortingOrder);
         
-        Debug.Log($"[DynamicSorting] 修复完成！");
-        Debug.Log($"[DynamicSorting] 当前Y坐标: {transform.position.y:F2}");
-        Debug.Log($"[DynamicSorting] 基础层级: {baseSortingOrder}");
-        Debug.Log($"[DynamicSorting] 计算层级: {calculatedOrder}");
-        Debug.Log($"[DynamicSorting] 最终层级: {finalOrder}");
-        Debug.Log($"[DynamicSorting] 现在Player在任何Y坐标都不会消失了！");
+        // Debug.Log($"[DynamicSorting] 修复完成！");
+        // Debug.Log($"[DynamicSorting] 当前Y坐标: {transform.position.y:F2}");
+        // Debug.Log($"[DynamicSorting] 基础层级: {baseSortingOrder}");
+        // Debug.Log($"[DynamicSorting] 计算层级: {calculatedOrder}");
+        // Debug.Log($"[DynamicSorting] 最终层级: {finalOrder}");
+        // Debug.Log($"[DynamicSorting] 现在Player在任何Y坐标都不会消失了！");
     }
     
     /// <summary>
@@ -341,7 +342,7 @@ public class DynamicSorting : MonoBehaviour
     [ContextMenu("🧪 测试极端Y坐标")]
     public void TestExtremeYCoordinates()
     {
-        Debug.Log($"[DynamicSorting] === 极端Y坐标测试 ===");
+        // Debug.Log($"[DynamicSorting] === 极端Y坐标测试 ===");
         
         float[] testYValues = { 11f, 20f, 50f, 100f, -20f, -50f };
         
@@ -351,20 +352,20 @@ public class DynamicSorting : MonoBehaviour
             int calculatedOrder = baseSortingOrder - Mathf.RoundToInt(testY * sortingPrecision);
             int finalOrder = Mathf.Clamp(calculatedOrder, minSortingOrder, maxSortingOrder);
             
-            Debug.Log($"[DynamicSorting] Y={testY:F1}: 计算层级={calculatedOrder}, 最终层级={finalOrder}");
-            Debug.Log($"[DynamicSorting]   vs 草地(-32768): 差距={finalOrder - (-32768)}");
-            Debug.Log($"[DynamicSorting]   vs 水域(-32767): 差距={finalOrder - (-32767)}");
+            // Debug.Log($"[DynamicSorting] Y={testY:F1}: 计算层级={calculatedOrder}, 最终层级={finalOrder}");
+            // Debug.Log($"[DynamicSorting]   vs 草地(-32768): 差距={finalOrder - (-32768)}");
+            // Debug.Log($"[DynamicSorting]   vs 水域(-32767): 差距={finalOrder - (-32767)}");
         }
         
-        Debug.Log($"[DynamicSorting] === 当前实际状态 ===");
+        // Debug.Log($"[DynamicSorting] === 当前实际状态 ===");
         Vector3 currentPos = transform.position;
         int currentCalculated = baseSortingOrder - Mathf.RoundToInt(currentPos.y * sortingPrecision);
         int currentFinal = Mathf.Clamp(currentCalculated, minSortingOrder, maxSortingOrder);
         
-        Debug.Log($"[DynamicSorting] 当前Y={currentPos.y:F2}: 层级={currentFinal}");
-        Debug.Log($"[DynamicSorting] 草地层级: -32768");
-        Debug.Log($"[DynamicSorting] 水域层级: -32767");
-        Debug.Log($"[DynamicSorting] 安全差距: {currentFinal - (-32768)} (应该 > 0)");
+        // Debug.Log($"[DynamicSorting] 当前Y={currentPos.y:F2}: 层级={currentFinal}");
+        // Debug.Log($"[DynamicSorting] 草地层级: -32768");
+        // Debug.Log($"[DynamicSorting] 水域层级: -32767");
+        // Debug.Log($"[DynamicSorting] 安全差距: {currentFinal - (-32768)} (应该 > 0)");
     }
     
     /// <summary>

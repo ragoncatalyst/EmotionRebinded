@@ -21,6 +21,6 @@ public class SkillBindManager : MonoBehaviour
 
     public void OnSkillTriggered(string skillId)
     {
-        Debug.Log($"[SkillBindManager] 执行技能: {skillId}");
+        // Debug.Log($"[SkillBindManager] 执行技能: {skillId}");
     }
 }

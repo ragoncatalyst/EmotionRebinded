@@ -28,12 +28,12 @@ public class GridSelectBinder : MonoBehaviour
     public void BeginSelection(string skillId)
     {
         pendingSkillId = skillId;
-        Debug.Log($"[GridSelectBinder] 开始绑定技能: {skillId}");
+        // Debug.Log($"[GridSelectBinder] 开始绑定技能: {skillId}");
         
         // 更新所有槽位指示器显示
         if (updateSlotIndicator)
         {
-            Debug.Log("[GridSelectBinder] 更新所有槽位指示器状态");
+            // Debug.Log("[GridSelectBinder] 更新所有槽位指示器状态");
             SlotOccupancyIndicator.UpdateAllSlotIndicators();
         }
     }
@@ -42,23 +42,23 @@ public class GridSelectBinder : MonoBehaviour
     {
         if (correspondingBattleButton == null)
         {
-            Debug.LogWarning("[GridSelectBinder] 对应的战斗按键未设置");
+            // Debug.LogWarning("[GridSelectBinder] 对应的战斗按键未设置");
             return;
         }
         if (string.IsNullOrEmpty(pendingSkillId))
         {
-            Debug.LogWarning("[GridSelectBinder] 没有待绑定的技能 ID");
+            // Debug.LogWarning("[GridSelectBinder] 没有待绑定的技能 ID");
             return;
         }
 
         // 将技能绑定到对应的战斗中按键
         correspondingBattleButton.SetSkill(pendingSkillId, correspondingBattleButton.keyBind);
-        Debug.Log($"[GridSelectBinder] 技能 {pendingSkillId} 已绑定到战斗按键 {correspondingBattleButton.row}{(int)correspondingBattleButton.column}");
+        // Debug.Log($"[GridSelectBinder] 技能 {pendingSkillId} 已绑定到战斗按键 {correspondingBattleButton.row}{(int)correspondingBattleButton.column}");
         
         // 更新槽位指示器
         if (updateSlotIndicator)
         {
-            Debug.Log("[GridSelectBinder] 技能绑定完成，更新所有槽位指示器");
+            // Debug.Log("[GridSelectBinder] 技能绑定完成，更新所有槽位指示器");
             SlotOccupancyIndicator.UpdateAllSlotIndicators();
         }
         
@@ -90,7 +90,7 @@ public class GridSelectBinder : MonoBehaviour
     public static void ClearPendingSkillId()
     {
         pendingSkillId = null;
-        Debug.Log("[GridSelectBinder] 已清除待绑定的技能ID");
+        // Debug.Log("[GridSelectBinder] 已清除待绑定的技能ID");
     }
 
     // 兼容旧版本的方法

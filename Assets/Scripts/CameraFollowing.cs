@@ -40,7 +40,7 @@ public class CameraFollowing : MonoBehaviour
         }
         else
         {
-            Debug.LogError("CameraFollowing: 没有找到 Player，请手动设置 target");
+            // Debug.LogError("CameraFollowing: 没有找到 Player，请手动设置 target");
         }
     }
 

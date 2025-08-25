@@ -1,7 +1,10 @@
 using System;
-using System.IO.Ports;
 using System.Text.RegularExpressions;
 using UnityEngine;
+using MyGame.UI;
+#if USE_SYSTEM_IO_PORTS
+using System.IO.Ports; // 需在 Player Settings 的 Scripting Define Symbols 添加 USE_SYSTEM_IO_PORTS 才会启用
+#endif
 
 namespace MyGame.IO
 {
@@ -20,14 +23,12 @@ namespace MyGame.IO
         public int baudRate = 9600;
         public bool autoConnectOnStart = true;
 
-        [Header("Nine Grids")]
-        [Tooltip("九宫格A：索引0..8 对应 1..9 号按钮")] public NineButtons[] gridA = new NineButtons[9];
-        [Tooltip("九宫格B：索引0..8 对应 1..9 号按钮")] public NineButtons[] gridB = new NineButtons[9];
-        [Tooltip("将信号分发到哪一组：A、B、或同时 Both")] public TargetGrid target = TargetGrid.A;
+        [Header("Key Mapping (Arduino→Keyboard)")]
+        [Tooltip("将 Arduino 按钮(2..10) 映射为键盘按键 QWEASDZXC")] public bool enableKeyMapping = true;
 
-        public enum TargetGrid { A, B, Both }
-
+        #if USE_SYSTEM_IO_PORTS
         private SerialPort serial;
+        #endif
         private readonly Regex pressRegex = new Regex("【按下】按钮(\\d+)", RegexOptions.Compiled);
         // 放置为将来扩展：目前 Arduino 未发送“释放”事件内容，但接口预留
         private readonly Regex releaseRegex = new Regex("【释放】按钮(\\d+)", RegexOptions.Compiled);
@@ -42,27 +43,34 @@ namespace MyGame.IO
 
         public void TryOpen()
         {
+            #if USE_SYSTEM_IO_PORTS
             try
             {
                 if (serial != null && serial.IsOpen) serial.Close();
                 serial = new SerialPort(portName, baudRate);
                 serial.ReadTimeout = 50;
                 serial.Open();
-                Debug.Log($"[ArduinoInputBridge] 串口已打开: {portName} @ {baudRate}");
+                // Debug.Log($"[ArduinoInputBridge] 串口已打开: {portName} @ {baudRate}");
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[ArduinoInputBridge] 打开串口失败: {e.Message}");
+                // Debug.LogWarning($"[ArduinoInputBridge] 打开串口失败: {e.Message}");
             }
+            #else
+            // Debug.LogWarning("[ArduinoInputBridge] 未启用 USE_SYSTEM_IO_PORTS，已跳过串口打开。");
+            #endif
         }
 
         private void OnDestroy()
         {
+            #if USE_SYSTEM_IO_PORTS
             try { if (serial != null && serial.IsOpen) serial.Close(); } catch { }
+            #endif
         }
 
         private void Update()
         {
+            #if USE_SYSTEM_IO_PORTS
             if (serial == null || !serial.IsOpen) return;
             try
             {
@@ -79,8 +87,9 @@ namespace MyGame.IO
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[ArduinoInputBridge] 串口读取异常: {e.Message}");
+                // Debug.LogWarning($"[ArduinoInputBridge] 串口读取异常: {e.Message}");
             }
+            #endif
         }
 
         private void ParseLine(string line)
@@ -90,7 +99,7 @@ namespace MyGame.IO
             if (mPress.Success)
             {
                 int idx = Mathf.Clamp(ParseIndex(mPress.Groups[1].Value) - 1, 0, 8);
-                DispatchPress(idx);
+                HandlePressFromArduinoIndex(idx + 1); // 还原为1..9/10编号
                 return;
             }
 
@@ -99,7 +108,7 @@ namespace MyGame.IO
             if (mRelease.Success)
             {
                 int idx = Mathf.Clamp(ParseIndex(mRelease.Groups[1].Value) - 1, 0, 8);
-                DispatchRelease(idx);
+                HandleReleaseFromArduinoIndex(idx + 1);
             }
         }
 
@@ -108,44 +117,93 @@ namespace MyGame.IO
             int n; return int.TryParse(s, out n) ? n : 1;
         }
 
-        private void DispatchPress(int idx)
+        private void HandlePressFromArduinoIndex(int oneBasedIndex)
         {
-            if (target == TargetGrid.A || target == TargetGrid.Both)
+            if (!enableKeyMapping) return;
+            KeyCode key = MapArduinoToKey(oneBasedIndex);
+            if (key == KeyCode.None) return;
+            string dir = GetDirectionName(oneBasedIndex);
+            // Debug.Log($"[ArduinoInputBridge] ▶ 按下方位: {dir} | 映射键: {key}");
+
+            // 1) 触发战斗九宫格中绑定该键的按钮
+            var buttons = GameObject.FindObjectsOfType<NineButtons>(true);
+            int hitCount = 0;
+            foreach (var b in buttons)
             {
-                SafePress(gridA, idx);
+                if (b != null && b.boundKey == key)
+                {
+                    string skillId = b.boundSkillId;
+                    var info = SkillDatabase.GetSkillInfo(skillId);
+                    string skillName = info != null ? info.name : skillId;
+                    // Debug.Log($"[ArduinoInputBridge]   → 触发战斗按钮 {b.gameObject.name} | 技能: {skillName}({skillId}) | 冷却: {b.cooldownSeconds}s");
+                    b.TryPressOrQueue();
+                    hitCount++;
+                }
             }
-            if (target == TargetGrid.B || target == TargetGrid.Both)
+            if (hitCount == 0)
             {
-                SafePress(gridB, idx);
+                // Debug.LogWarning($"[ArduinoInputBridge]   → 未找到绑定 {key} 的战斗按钮");
+            }
+
+            // 2) 如果升级面板开启，触发对应选择按钮（其键绑定等于目标键）
+            var selects = GameObject.FindObjectsOfType<NineSelectionButtons>(true);
+            int selHits = 0;
+            foreach (var s in selects)
+            {
+                if (s != null && s.GetTargetKey() == key)
+                {
+                    // Debug.Log($"[ArduinoInputBridge]   → 触发升级选项按钮 {s.gameObject.name} (键 {key})");
+                    s.TriggerSelect();
+                    selHits++;
+                }
+            }
+            if (selHits > 0)
+            {
+                // Debug.Log($"[ArduinoInputBridge]   → 升级面板响应 {selHits} 个选项");
             }
         }
 
-        private void DispatchRelease(int idx)
+        private void HandleReleaseFromArduinoIndex(int oneBasedIndex)
         {
-            if (target == TargetGrid.A || target == TargetGrid.Both)
+            // 当前未需要处理释放；接口预留
+        }
+
+        private KeyCode MapArduinoToKey(int arduinoIndex)
+        {
+            // 硬件顺序（固定，来自你提供的中文列表）：
+            // 1: 右下, 2: 正下, 3: 左下, 4: 正右, 5: 中间, 6: 正左, 7: 右上, 8: 正上, 9: 左上
+            // 在 QWE / ASD / ZXC 九宫格中的对应：
+            // 右下(C3)=C, 正下(C2)=X, 左下(C1)=Z, 正右(B3)=D, 中间(B2)=S, 正左(B1)=A, 右上(A3)=E, 正上(A2)=W, 左上(A1)=Q
+            switch (arduinoIndex)
             {
-                SafeRelease(gridA, idx);
-            }
-            if (target == TargetGrid.B || target == TargetGrid.Both)
-            {
-                SafeRelease(gridB, idx);
+                case 1: return KeyCode.C; // 右下
+                case 2: return KeyCode.X; // 正下
+                case 3: return KeyCode.Z; // 左下
+                case 4: return KeyCode.D; // 正右
+                case 5: return KeyCode.S; // 中间
+                case 6: return KeyCode.A; // 正左
+                case 7: return KeyCode.E; // 右上
+                case 8: return KeyCode.W; // 正上
+                case 9: return KeyCode.Q; // 左上
+                default: return KeyCode.None;
             }
         }
 
-        private void SafePress(NineButtons[] grid, int idx)
+        private string GetDirectionName(int arduinoIndex)
         {
-            if (grid == null || idx < 0 || idx >= grid.Length) return;
-            var b = grid[idx];
-            if (b == null) return;
-            b.TryPressOrQueue();
-        }
-
-        private void SafeRelease(NineButtons[] grid, int idx)
-        {
-            if (grid == null || idx < 0 || idx >= grid.Length) return;
-            var b = grid[idx];
-            if (b == null) return;
-            // 若有专门的释放逻辑可在 NineButtons 中添加并调用；当前无需处理
+            switch (arduinoIndex)
+            {
+                case 1: return "右下";
+                case 2: return "正下";
+                case 3: return "左下";
+                case 4: return "正右";
+                case 5: return "中间";
+                case 6: return "正左";
+                case 7: return "右上";
+                case 8: return "正上";
+                case 9: return "左上";
+                default: return $"未知({arduinoIndex})";
+            }
         }
     }
 }

@@ -18,6 +18,42 @@ public enum TerrainType
 /// </summary>
 public class TerrainInitialization : MonoBehaviour
 {
+    [Header("调试输出")]
+    [SerializeField] private bool suppressTerrainLogs = true; // 关闭则不屏蔽
+    private void OnEnable()
+    {
+        if (suppressTerrainLogs)
+        {
+            Application.logMessageReceived += TerrainLogFilter;
+        }
+    }
+    private void OnDisable()
+    {
+        if (suppressTerrainLogs)
+        {
+            Application.logMessageReceived -= TerrainLogFilter;
+        }
+    }
+    private void TerrainLogFilter(string condition, string stackTrace, LogType type)
+    {
+        // 屏蔽本脚本产生的日志（常以 [TerrainInitialization] 开头）
+        if (string.IsNullOrEmpty(condition)) return;
+        if (condition.Contains("[TerrainInitialization]"))
+        {
+            // 吞掉该条日志：不转发
+            return;
+        }
+        // 允许其他日志继续正常打印
+        Application.logMessageReceived -= TerrainLogFilter;
+        try
+        {
+            // 原样转发其他日志（此处不输出）
+        }
+        finally
+        {
+            Application.logMessageReceived += TerrainLogFilter;
+        }
+    }
     // 玩家初始网格坐标（用于限制水域圆心在其30格外）
     private Vector2Int playerInitialGrid;
     private bool playerInitialGridSet = false;
@@ -174,7 +210,7 @@ public class TerrainInitialization : MonoBehaviour
                 if (player != null)
                 {
                     playerTransform = player.transform;
-                    Debug.Log("[TerrainInitialization] 自动找到玩家对象: " + player.name);
+                    // Debug.Log("[TerrainInitialization] 自动找到玩家对象: " + player.name);
                 }
                 else
                 {
@@ -183,11 +219,11 @@ public class TerrainInitialization : MonoBehaviour
                     if (playerController != null)
                     {
                         playerTransform = playerController.transform;
-                        Debug.Log("[TerrainInitialization] 通过PlayerController找到玩家对象: " + playerController.name);
+                        // Debug.Log("[TerrainInitialization] 通过PlayerController找到玩家对象: " + playerController.name);
                     }
                     else
                     {
-                        Debug.LogWarning("[TerrainInitialization] 未找到玩家对象，将使用世界原点(0,0)作为中心");
+                        // Debug.LogWarning("[TerrainInitialization] 未找到玩家对象，将使用世界原点(0,0)作为中心");
                         centerOnPlayer = false;
                     }
                 }
@@ -201,7 +237,7 @@ public class TerrainInitialization : MonoBehaviour
                     : Vector2.zero;
                 playerInitialGrid = WorldToGrid(playerWorldPos);
                 playerInitialGridSet = true;
-                Debug.Log($"[TerrainInitialization] 记录玩家初始网格位置: {playerInitialGrid}");
+                // Debug.Log($"[TerrainInitialization] 记录玩家初始网格位置: {playerInitialGrid}");
             }
             
             GenerateTerrain();
@@ -242,7 +278,7 @@ public class TerrainInitialization : MonoBehaviour
     [ContextMenu("生成地形")]
     public void GenerateTerrain()
     {
-        Debug.Log("[TerrainInitialization] 开始生成地形...");
+        // Debug.Log("[TerrainInitialization] 开始生成地形...");
         
         // 计算地形偏移量（以玩家为中心）
         CalculateTerrainOffset();
@@ -291,7 +327,7 @@ public class TerrainInitialization : MonoBehaviour
             initialBushesSpawned = true;
             // 覆盖整张初始地图的草地区域，保证均匀分布
             GenerateBushesConsistentDensityAcrossInitialMap();
-            if (showDebugInfo) Debug.Log("[TerrainInitialization] 初始区域草丛已生成一次");
+            // if (showDebugInfo) Debug.Log("[TerrainInitialization] 初始区域草丛已生成一次");
         }
 
         // 初始阶段：不在旧区域生成草丛；草丛只在扩展区域生成
@@ -300,13 +336,13 @@ public class TerrainInitialization : MonoBehaviour
         {
             initialChestsSpawned = true;
             GenerateChestsAcrossInitialMap();
-            if (showDebugInfo) Debug.Log("[TerrainInitialization] 初始区域宝箱已生成一次");
+            // if (showDebugInfo) Debug.Log("[TerrainInitialization] 初始区域宝箱已生成一次");
         }
         
         // 重新初始化地图边界（因为可能重新生成了地形）
         InitializeMapBounds();
         
-        Debug.Log($"[TerrainInitialization] 地形生成完成！草地: {CountTiles(TerrainType.Grass)}, 水域: {CountTiles(TerrainType.Water)}");
+        // Debug.Log($"[TerrainInitialization] 地形生成完成！草地: {CountTiles(TerrainType.Grass)}, 水域: {CountTiles(TerrainType.Water)}");
     }
 
     private void TrySpawnInitialEnemies()
@@ -351,7 +387,7 @@ public class TerrainInitialization : MonoBehaviour
 
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 初始生成怪物: {spawned}/{initialEnemyCount} (范围 {enemySpawnMinDist}-{enemySpawnMaxDist})");
+            // Debug.Log($"[TerrainInitialization] 初始生成怪物: {spawned}/{initialEnemyCount} (范围 {enemySpawnMinDist}-{enemySpawnMaxDist})");
         }
     }
 
@@ -495,7 +531,7 @@ public class TerrainInitialization : MonoBehaviour
             if (terrainParent != null) inst.transform.SetParent(terrainParent);
             spawned++;
         }
-        if (showDebugInfo) Debug.Log($"[TerrainInitialization] 宝箱生成（区域 {areaMin}-{areaMax}）: 尝试 {tries}，实际 {spawned}");
+        // if (showDebugInfo) Debug.Log($"[TerrainInitialization] 宝箱生成（区域 {areaMin}-{areaMax}）: 尝试 {tries}，实际 {spawned}");
     }
 
     /// <summary>
@@ -537,7 +573,7 @@ public class TerrainInitialization : MonoBehaviour
             if (terrainParent != null) inst.transform.SetParent(terrainParent);
             spawned++;
         }
-        if (showDebugInfo) Debug.Log($"[TerrainInitialization] 草丛生成（区域 {areaMin}-{areaMax}）: 目标尝试 {tries}，实际生成 {spawned}");
+        // if (showDebugInfo) Debug.Log($"[TerrainInitialization] 草丛生成（区域 {areaMin}-{areaMax}）: 目标尝试 {tries}，实际生成 {spawned}");
     }
     
     /// <summary>
@@ -559,7 +595,7 @@ public class TerrainInitialization : MonoBehaviour
             
             if (showDebugInfo)
             {
-                Debug.Log($"[TerrainInitialization] 玩家世界坐标: {playerWorldPos}, 网格坐标: {playerGridPos}, 地形偏移: {terrainOffset}");
+                // Debug.Log($"[TerrainInitialization] 玩家世界坐标: {playerWorldPos}, 网格坐标: {playerGridPos}, 地形偏移: {terrainOffset}");
             }
         }
         else
@@ -569,7 +605,7 @@ public class TerrainInitialization : MonoBehaviour
             
             if (showDebugInfo)
             {
-                Debug.Log("[TerrainInitialization] 使用世界原点作为地形中心");
+                // Debug.Log("[TerrainInitialization] 使用世界原点作为地形中心");
             }
         }
     }
@@ -606,7 +642,7 @@ public class TerrainInitialization : MonoBehaviour
             // 确保有足够的空间生成完整圆形
             if (absoluteSafeBorder * 2 + 20 >= mapWidth || absoluteSafeBorder * 2 + 20 >= mapHeight)
             {
-                Debug.Log($"[TerrainInitialization] ⚠️ 地图太小，无法安全生成水域 (需要: {absoluteSafeBorder * 2 + 20}, 实际: {mapWidth}x{mapHeight})");
+                // Debug.Log($"[TerrainInitialization] ⚠️ 地图太小，无法安全生成水域 (需要: {absoluteSafeBorder * 2 + 20}, 实际: {mapWidth}x{mapHeight})");
                 continue; // 地图太小，跳过这次生成
             }
             
@@ -705,7 +741,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 圆形水域生成完成，水域数量: {generatedWaterTiles}/{targetWaterTiles}，水域中心: {waterCenters.Count} 个，尝试次数: {attempts}");
+            // Debug.Log($"[TerrainInitialization] 圆形水域生成完成，水域数量: {generatedWaterTiles}/{targetWaterTiles}，水域中心: {waterCenters.Count} 个，尝试次数: {attempts}");
         }
     }
     
@@ -888,7 +924,7 @@ public class TerrainInitialization : MonoBehaviour
         int removedCount = originalCluster.Count - connectedCluster.Count;
         if (removedCount > 0)
         {
-            Debug.Log($"[TerrainInitialization] 🔗 水域连通性优化：移除了 {removedCount} 个孤立散点，保留 {connectedCluster.Count} 个连通瓦片");
+            // Debug.Log($"[TerrainInitialization] 🔗 水域连通性优化：移除了 {removedCount} 个孤立散点，保留 {connectedCluster.Count} 个连通瓦片");
         }
         
         return connectedCluster;
@@ -978,17 +1014,17 @@ public class TerrainInitialization : MonoBehaviour
         if (grassTilemap != null)
         {
             grassTilemap.FloodFill(Vector3Int.zero, null);
-            Debug.Log("[TerrainInitialization] 草地Tilemap已清理");
+            // Debug.Log("[TerrainInitialization] 草地Tilemap已清理");
         }
         
         if (waterTilemap != null)
         {
             waterTilemap.FloodFill(Vector3Int.zero, null);
-            Debug.Log("[TerrainInitialization] 水域Tilemap已清理");
+            // Debug.Log("[TerrainInitialization] 水域Tilemap已清理");
         }
         
         waterTiles.Clear();
-        Debug.Log("[TerrainInitialization] 地形已清理");
+        // Debug.Log("[TerrainInitialization] 地形已清理");
     }
     
     /// <summary>
@@ -1011,7 +1047,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 玩家圆形安全区 半径={radius}，改写地块={changed}");
+            // Debug.Log($"[TerrainInitialization] 玩家圆形安全区 半径={radius}，改写地块={changed}");
         }
     }
 
@@ -1117,7 +1153,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo && waterToGrassCount > 0)
         {
-            Debug.Log($"[TerrainInitialization] 地图中心安全区域({playerSafeZoneSize}x{playerSafeZoneSize})：将 {waterToGrassCount} 个水域转换为草地");
+            // Debug.Log($"[TerrainInitialization] 地图中心安全区域({playerSafeZoneSize}x{playerSafeZoneSize})：将 {waterToGrassCount} 个水域转换为草地");
         }
     }
     
@@ -1128,25 +1164,25 @@ public class TerrainInitialization : MonoBehaviour
     {
         if (bushPrefabs == null || bushPrefabs.Length == 0)
         {
-            Debug.LogWarning("[TerrainInitialization] ⚠️ 草丛prefab数组为空，跳过草丛生成");
+            // Debug.LogWarning("[TerrainInitialization] ⚠️ 草丛prefab数组为空，跳过草丛生成");
             return;
         }
         
         // 清空之前的草丛位置记录
         spawnedBushPositions.Clear();
         
-        Debug.Log("[TerrainInitialization] 🌿 开始分支式草丛生成...");
+        // Debug.Log("[TerrainInitialization] 🌿 开始分支式草丛生成...");
         
         // 寻找初始种子点（4x4非水区域）
         List<Vector2Int> seedPoints = FindInitialSeedPoints();
         
         if (seedPoints.Count == 0)
         {
-            Debug.LogWarning("[TerrainInitialization] ⚠️ 没有找到合适的4x4非水区域作为种子点");
+            // Debug.LogWarning("[TerrainInitialization] ⚠️ 没有找到合适的4x4非水区域作为种子点");
             return;
         }
         
-        Debug.Log($"[TerrainInitialization] 🌱 找到 {seedPoints.Count} 个种子点");
+        // Debug.Log($"[TerrainInitialization] 🌱 找到 {seedPoints.Count} 个种子点");
         
         int totalSpawned = 0;
         
@@ -1156,13 +1192,13 @@ public class TerrainInitialization : MonoBehaviour
             int branchSpawned = GenerateBushBranch(seedPoint, 0, 50); // 最大深度50
             totalSpawned += branchSpawned;
             
-            Debug.Log($"[TerrainInitialization] 🌿 种子点 {seedPoint} 分支生成了 {branchSpawned} 个草丛");
+            // Debug.Log($"[TerrainInitialization] 🌿 种子点 {seedPoint} 分支生成了 {branchSpawned} 个草丛");
             
             // 限制总数量，避免生成过多
             if (totalSpawned >= 100) break;
         }
         
-        Debug.Log($"[TerrainInitialization] ✅ 分支式草丛生成完成！总共生成 {totalSpawned} 个草丛");
+        // Debug.Log($"[TerrainInitialization] ✅ 分支式草丛生成完成！总共生成 {totalSpawned} 个草丛");
     }
     
     /// <summary>
@@ -1353,7 +1389,7 @@ public class TerrainInitialization : MonoBehaviour
     private System.Collections.IEnumerator GenerateExpandedBushes(Vector2Int newMapMin, Vector2Int newMapMax)
     {
         if (bushPrefabs == null || bushPrefabs.Length == 0) yield break;
-        Debug.Log($"[TerrainInitialization] 🌿 为扩展区域生成草丛(均匀采样): {newMapMin} - {newMapMax}");
+        // Debug.Log($"[TerrainInitialization] 🌿 为扩展区域生成草丛(均匀采样): {newMapMin} - {newMapMax}");
 
         // 1) 构建候选集
         List<Vector2Int> candidates = new List<Vector2Int>();
@@ -1418,7 +1454,7 @@ public class TerrainInitialization : MonoBehaviour
             spawned++;
             if (spawned % 5 == 0) yield return null;
         }
-        Debug.Log($"[TerrainInitialization] ✅ 扩展灌木生成: 候选 {candidates.Count}, 目标 {target}, 实际 {spawned}");
+        // Debug.Log($"[TerrainInitialization] ✅ 扩展灌木生成: 候选 {candidates.Count}, 目标 {target}, 实际 {spawned}");
     }
     
     /// <summary>
@@ -1457,7 +1493,7 @@ public class TerrainInitialization : MonoBehaviour
     /// </summary>
     private void SmoothWaterBoundaries()
     {
-        Debug.Log("[TerrainInitialization] 🌊 开始平滑水域边界...");
+        // Debug.Log("[TerrainInitialization] 🌊 开始平滑水域边界...");
         
         int totalRemovedCount = 0;
         int iteration = 0;
@@ -1481,7 +1517,7 @@ public class TerrainInitialization : MonoBehaviour
             // 如果没有需要移除的水域，结束循环
             if (waterToRemove.Count == 0)
             {
-                Debug.Log($"[TerrainInitialization] ✅ 水域边界平滑完成！第 {iteration} 轮后无更多需要移除的水域");
+                // Debug.Log($"[TerrainInitialization] ✅ 水域边界平滑完成！第 {iteration} 轮后无更多需要移除的水域");
                 break;
             }
             
@@ -1500,17 +1536,17 @@ public class TerrainInitialization : MonoBehaviour
             }
             
             totalRemovedCount += waterToRemove.Count;
-            Debug.Log($"[TerrainInitialization] 🔄 第 {iteration} 轮：移除了 {waterToRemove.Count} 个被过度包围的水域瓦片");
+            // Debug.Log($"[TerrainInitialization] 🔄 第 {iteration} 轮：移除了 {waterToRemove.Count} 个被过度包围的水域瓦片");
             
             // 安全检查：避免无限循环
             if (iteration > 50)
             {
-                Debug.LogWarning("[TerrainInitialization] ⚠️ 水域边界平滑达到最大迭代次数，强制停止");
+                // Debug.LogWarning("[TerrainInitialization] ⚠️ 水域边界平滑达到最大迭代次数，强制停止");
                 break;
             }
         }
         
-        Debug.Log($"[TerrainInitialization] 🎯 水域边界平滑总结：共 {iteration} 轮，移除 {totalRemovedCount} 个水域瓦片");
+        // Debug.Log($"[TerrainInitialization] 🎯 水域边界平滑总结：共 {iteration} 轮，移除 {totalRemovedCount} 个水域瓦片");
     }
     
     /// <summary>
@@ -1612,7 +1648,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 发现 {grassClusters.Count} 个草地连通区域，最大区域大小: {largestCluster.Count}");
+            // Debug.Log($"[TerrainInitialization] 发现 {grassClusters.Count} 个草地连通区域，最大区域大小: {largestCluster.Count}");
         }
     }
     
@@ -1761,10 +1797,10 @@ public class TerrainInitialization : MonoBehaviour
         // 修复Tilemap碰撞箱偏移问题
         FixTilemapAlignment();
         
-        if (showDebugInfo)
-        {
-            Debug.Log($"[TerrainInitialization] Tilemap地形生成完成！草地Tiles: {CountTiles(TerrainType.Grass)}, 水域Tiles: {CountTiles(TerrainType.Water)}");
-        }
+        // if (showDebugInfo)
+        // {
+        //     Debug.Log($"[TerrainInitialization] Tilemap地形生成完成！草地Tiles: {CountTiles(TerrainType.Grass)}, 水域Tiles: {CountTiles(TerrainType.Water)}");
+        // }
     }
     
     /// <summary>
@@ -1805,10 +1841,10 @@ public class TerrainInitialization : MonoBehaviour
             waterCollider.usedByComposite = true;
         }
         
-        if (showDebugInfo)
-        {
-            Debug.Log($"[TerrainInitialization] 水域碰撞系统设置完成，碰撞器类型: {(compositeCollider != null ? "CompositeCollider2D" : "TilemapCollider2D")}，触发器模式: {waterCollider.isTrigger}");
-        }
+        // if (showDebugInfo)
+        // {
+        //     Debug.Log($"[TerrainInitialization] 水域碰撞系统设置完成，碰撞器类型: {(compositeCollider != null ? "CompositeCollider2D" : "TilemapCollider2D")}，触发器模式: {waterCollider.isTrigger}");
+        // }
     }
     
     /// <summary>
@@ -1824,7 +1860,7 @@ public class TerrainInitialization : MonoBehaviour
             {
                 grassRenderer.sortingLayerName = "Default";
                 grassRenderer.sortingOrder = -2000; // 确保在所有物体之下
-                Debug.Log($"[TerrainInitialization] 草地Tilemap排序层级设置为: {grassRenderer.sortingOrder}");
+                // Debug.Log($"[TerrainInitialization] 草地Tilemap排序层级设置为: {grassRenderer.sortingOrder}");
             }
         }
         
@@ -1836,11 +1872,11 @@ public class TerrainInitialization : MonoBehaviour
             {
                 waterRenderer.sortingLayerName = "Default";
                 waterRenderer.sortingOrder = -32767; // 略高于草地，但仍在绝对底层
-                Debug.Log($"[TerrainInitialization] 水域Tilemap排序层级设置为: {waterRenderer.sortingOrder}");
+                // Debug.Log($"[TerrainInitialization] 水域Tilemap排序层级设置为: {waterRenderer.sortingOrder}");
             }
         }
         
-        Debug.Log("[TerrainInitialization] Tilemap排序层级设置完成！地面现在始终在最底层。");
+        // Debug.Log("[TerrainInitialization] Tilemap排序层级设置完成！地面现在始终在最底层。");
     }
     
     /// <summary>
@@ -1954,22 +1990,22 @@ public class TerrainInitialization : MonoBehaviour
         int waterCount = CountTiles(TerrainType.Water);
         int totalTiles = mapWidth * mapHeight;
         
-        Debug.Log($"[TerrainInitialization] === 地形信息 ===");
-        Debug.Log($"[TerrainInitialization] 地图大小: {mapWidth}x{mapHeight} ({totalTiles} 总地块)");
-        Debug.Log($"[TerrainInitialization] 地形偏移: {terrainOffset}");
-        Debug.Log($"[TerrainInitialization] 草地: {grassCount} ({(float)grassCount/totalTiles*100:F1}%)");
-        Debug.Log($"[TerrainInitialization] 水域: {waterCount} ({(float)waterCount/totalTiles*100:F1}%)");
-        Debug.Log($"[TerrainInitialization] 水域地块集合大小: {waterTiles.Count}");
-        Debug.Log($"[TerrainInitialization] 以玩家为中心: {centerOnPlayer}");
-        Debug.Log($"[TerrainInitialization] 玩家安全区域大小: {playerSafeZoneSize}x{playerSafeZoneSize}");
-        Debug.Log($"[TerrainInitialization] 水域间最小距离: {minWaterDistance}格");
-        Debug.Log($"[TerrainInitialization] 水域圆形度: {waterCircularness:F2} (0=随机, 1=完美圆形)");
-        Debug.Log($"[TerrainInitialization] 已生成水域中心: {(waterCenters != null ? waterCenters.Count : 0)} 个");
+        // Debug.Log($"[TerrainInitialization] === 地形信息 ===");
+        // Debug.Log($"[TerrainInitialization] 地图大小: {mapWidth}x{mapHeight} ({totalTiles} 总地块)");
+        // Debug.Log($"[TerrainInitialization] 地形偏移: {terrainOffset}");
+        // Debug.Log($"[TerrainInitialization] 草地: {grassCount} ({(float)grassCount/totalTiles*100:F1}%)");
+        // Debug.Log($"[TerrainInitialization] 水域: {waterCount} ({(float)waterCount/totalTiles*100:F1}%)");
+        // Debug.Log($"[TerrainInitialization] 水域地块集合大小: {waterTiles.Count}");
+        // Debug.Log($"[TerrainInitialization] 以玩家为中心: {centerOnPlayer}");
+        // Debug.Log($"[TerrainInitialization] 玩家安全区域大小: {playerSafeZoneSize}x{playerSafeZoneSize}");
+        // Debug.Log($"[TerrainInitialization] 水域间最小距离: {minWaterDistance}格");
+        // Debug.Log($"[TerrainInitialization] 水域圆形度: {waterCircularness:F2} (0=随机, 1=完美圆形)");
+        // Debug.Log($"[TerrainInitialization] 已生成水域中心: {(waterCenters != null ? waterCenters.Count : 0)} 个");
         
         if (centerOnPlayer && playerTransform != null)
         {
             Vector2Int playerGridPos = WorldToGrid(playerTransform.position);
-            Debug.Log($"[TerrainInitialization] 玩家位置: 世界({playerTransform.position.x:F1}, {playerTransform.position.y:F1}) 网格({playerGridPos.x}, {playerGridPos.y})");
+            // Debug.Log($"[TerrainInitialization] 玩家位置: 世界({playerTransform.position.x:F1}, {playerTransform.position.y:F1}) 网格({playerGridPos.x}, {playerGridPos.y})");
         }
     }
     
@@ -2015,20 +2051,20 @@ public class TerrainInitialization : MonoBehaviour
             }
         }
         
-        Debug.Log($"[TerrainInitialization] === 地图中心安全区域验证 ===");
-        Debug.Log($"[TerrainInitialization] 安全区域大小: {playerSafeZoneSize}x{playerSafeZoneSize}");
-        Debug.Log($"[TerrainInitialization] 中心位置: ({centerX}, {centerY})");
-        Debug.Log($"[TerrainInitialization] 区域内地块: {totalTiles} 个");
-        Debug.Log($"[TerrainInitialization] 水域地块: {waterCount} 个");
-        Debug.Log($"[TerrainInitialization] 草地地块: {totalTiles - waterCount} 个");
+        // Debug.Log($"[TerrainInitialization] === 地图中心安全区域验证 ===");
+        // Debug.Log($"[TerrainInitialization] 安全区域大小: {playerSafeZoneSize}x{playerSafeZoneSize}");
+        // Debug.Log($"[TerrainInitialization] 中心位置: ({centerX}, {centerY})");
+        // Debug.Log($"[TerrainInitialization] 区域内地块: {totalTiles} 个");
+        // Debug.Log($"[TerrainInitialization] 水域地块: {waterCount} 个");
+        // Debug.Log($"[TerrainInitialization] 草地地块: {totalTiles - waterCount} 个");
         
         if (waterCount == 0)
         {
-            Debug.Log($"[TerrainInitialization] ✅ 地图中心安全区域验证通过！");
+            // Debug.Log($"[TerrainInitialization] ✅ 地图中心安全区域验证通过！");
         }
         else
         {
-            Debug.LogWarning($"[TerrainInitialization] ❌ 地图中心安全区域内发现 {waterCount} 个水域地块！");
+            // Debug.LogWarning($"[TerrainInitialization] ❌ 地图中心安全区域内发现 {waterCount} 个水域地块！");
         }
     }
     
@@ -2038,11 +2074,11 @@ public class TerrainInitialization : MonoBehaviour
     [ContextMenu("修复Tilemap碰撞设置")]
     public void FixTilemapCollision()
     {
-        Debug.Log("[TerrainInitialization] 开始修复Tilemap碰撞设置...");
+        // Debug.Log("[TerrainInitialization] 开始修复Tilemap碰撞设置...");
         
         if (waterTilemap == null)
         {
-            Debug.LogWarning("[TerrainInitialization] 水域Tilemap未设置！");
+            // Debug.LogWarning("[TerrainInitialization] 水域Tilemap未设置！");
             return;
         }
         
@@ -2055,7 +2091,7 @@ public class TerrainInitialization : MonoBehaviour
         if (tilemapCollider != null)
         {
             tilemapCollider.isTrigger = true;
-            Debug.Log("  - TilemapCollider2D已设为触发器");
+            // Debug.Log("  - TilemapCollider2D已设为触发器");
         }
         
         // 修复CompositeCollider2D
@@ -2063,7 +2099,7 @@ public class TerrainInitialization : MonoBehaviour
         {
             compositeCollider.isTrigger = true;
             compositeCollider.geometryType = CompositeCollider2D.GeometryType.Polygons;
-            Debug.Log("  - CompositeCollider2D已设为触发器");
+            // Debug.Log("  - CompositeCollider2D已设为触发器");
         }
         
         // 修复Rigidbody2D
@@ -2071,10 +2107,10 @@ public class TerrainInitialization : MonoBehaviour
         {
             tilemapRb.bodyType = RigidbodyType2D.Static;
             tilemapRb.gravityScale = 0f;
-            Debug.Log("  - Tilemap Rigidbody2D已设为静态");
+            // Debug.Log("  - Tilemap Rigidbody2D已设为静态");
         }
         
-        Debug.Log("[TerrainInitialization] Tilemap碰撞设置修复完成！现在使用代码逻辑控制通行，避免物理冲突。");
+        // Debug.Log("[TerrainInitialization] Tilemap碰撞设置修复完成！现在使用代码逻辑控制通行，避免物理冲突。");
     }
     
     /// <summary>
@@ -2083,7 +2119,7 @@ public class TerrainInitialization : MonoBehaviour
     [ContextMenu("🧪 测试碰撞箱位置")]
     public void TestColliderAlignment()
     {
-        Debug.Log("[TerrainInitialization] === 碰撞箱位置测试 ===");
+        // Debug.Log("[TerrainInitialization] === 碰撞箱位置测试 ===");
         
         // 检查水域碰撞器
         if (waterTilemap != null)
@@ -2091,15 +2127,15 @@ public class TerrainInitialization : MonoBehaviour
             TilemapCollider2D waterCollider = waterTilemap.GetComponent<TilemapCollider2D>();
             if (waterCollider != null)
             {
-                Debug.Log($"[TerrainInitialization] 水域TilemapCollider2D偏移: {waterCollider.offset}");
-                Debug.Log($"[TerrainInitialization] 预期偏移: (0, 1) - {(waterCollider.offset == new Vector2(0f, 1f) ? "✅ 正确" : "❌ 错误")}");
+                // Debug.Log($"[TerrainInitialization] 水域TilemapCollider2D偏移: {waterCollider.offset}");
+                // Debug.Log($"[TerrainInitialization] 预期偏移: (0, 1) - {(waterCollider.offset == new Vector2(0f, 1f) ? "✅ 正确" : "❌ 错误")}");
             }
             
             CompositeCollider2D compositeCollider = waterTilemap.GetComponent<CompositeCollider2D>();
             if (compositeCollider != null)
             {
-                Debug.Log($"[TerrainInitialization] CompositeCollider2D偏移: {compositeCollider.offset}");
-                Debug.Log($"[TerrainInitialization] 预期偏移: (0, 1) - {(compositeCollider.offset == new Vector2(0f, 1f) ? "✅ 正确" : "❌ 错误")}");
+                // Debug.Log($"[TerrainInitialization] CompositeCollider2D偏移: {compositeCollider.offset}");
+                // Debug.Log($"[TerrainInitialization] 预期偏移: (0, 1) - {(compositeCollider.offset == new Vector2(0f, 1f) ? "✅ 正确" : "❌ 错误")}");
             }
         }
         
@@ -2109,16 +2145,16 @@ public class TerrainInitialization : MonoBehaviour
             TilemapCollider2D grassCollider = grassTilemap.GetComponent<TilemapCollider2D>();
             if (grassCollider != null)
             {
-                Debug.Log($"[TerrainInitialization] 草地TilemapCollider2D偏移: {grassCollider.offset}");
-                Debug.Log($"[TerrainInitialization] 预期偏移: (0, 1) - {(grassCollider.offset == new Vector2(0f, 1f) ? "✅ 正确" : "❌ 错误")}");
+                // Debug.Log($"[TerrainInitialization] 草地TilemapCollider2D偏移: {grassCollider.offset}");
+                // Debug.Log($"[TerrainInitialization] 预期偏移: (0, 1) - {(grassCollider.offset == new Vector2(0f, 1f) ? "✅ 正确" : "❌ 错误")}");
             }
             else
             {
-                Debug.Log("[TerrainInitialization] 草地Tilemap没有碰撞器（正常情况）");
+                // Debug.Log("[TerrainInitialization] 草地Tilemap没有碰撞器（正常情况）");
             }
         }
         
-        Debug.Log("[TerrainInitialization] 💡 如果偏移不正确，请使用'修复Tilemap对齐'来修复");
+        // Debug.Log("[TerrainInitialization] 💡 如果偏移不正确，请使用'修复Tilemap对齐'来修复");
     }
     
     /// <summary>
@@ -2127,7 +2163,7 @@ public class TerrainInitialization : MonoBehaviour
     [ContextMenu("修复Tilemap对齐")]
     public void FixTilemapAlignment()
     {
-        Debug.Log("[TerrainInitialization] 开始修复Tilemap对齐和碰撞箱偏移...");
+        // Debug.Log("[TerrainInitialization] 开始修复Tilemap对齐和碰撞箱偏移...");
         
         // 修复草地Tilemap
         if (grassTilemap != null)
@@ -2147,10 +2183,10 @@ public class TerrainInitialization : MonoBehaviour
             if (grassCollider != null)
             {
                 grassCollider.offset = Vector2.zero; // 归零
-                Debug.Log("  ✅ 草地TilemapCollider2D偏移已修复（向上移动1格）");
+                // Debug.Log("  ✅ 草地TilemapCollider2D偏移已修复（向上移动1格）");
             }
             
-            Debug.Log("  ✅ 草地Tilemap位置和锚点已重置");
+            // Debug.Log("  ✅ 草地Tilemap位置和锚点已重置");
         }
         
         // 修复水域Tilemap
@@ -2166,19 +2202,19 @@ public class TerrainInitialization : MonoBehaviour
                 waterRenderer.chunkCullingBounds = Vector3.zero;
             }
             
-            Debug.Log("  ✅ 水域Tilemap位置和锚点已重置");
+            // Debug.Log("  ✅ 水域Tilemap位置和锚点已重置");
             
             // 修复TilemapCollider2D偏移（向上移动一格）
             TilemapCollider2D collider = waterTilemap.GetComponent<TilemapCollider2D>();
             if (collider != null)
             {
                 collider.offset = Vector2.zero; // 归零
-                Debug.Log("  ✅ 水域TilemapCollider2D偏移已修复（向上移动1格）");
+                // Debug.Log("  ✅ 水域TilemapCollider2D偏移已修复（向上移动1格）");
                 
                 // 强制刷新碰撞器
                 collider.enabled = false;
                 collider.enabled = true;
-                Debug.Log("  ✅ 水域碰撞器已刷新");
+                // Debug.Log("  ✅ 水域碰撞器已刷新");
             }
             
             // 修复CompositeCollider2D偏移（向上移动一格）
@@ -2186,18 +2222,18 @@ public class TerrainInitialization : MonoBehaviour
             if (compositeCollider != null)
             {
                 compositeCollider.offset = Vector2.zero; // 归零
-                Debug.Log("  ✅ CompositeCollider2D偏移已修复（向上移动1格）");
+                // Debug.Log("  ✅ CompositeCollider2D偏移已修复（向上移动1格）");
             }
         }
         
-        Debug.Log("[TerrainInitialization] ✅ Tilemap对齐和碰撞箱偏移修复完成！");
-        Debug.Log("[TerrainInitialization] 🎯 所有碰撞箱已向上移动1格，现在应该与视觉位置完全对齐！");
-        Debug.Log("[TerrainInitialization] 📋 修复内容:");
-        Debug.Log("[TerrainInitialization]   - Tilemap位置和锚点重置为零");
-        Debug.Log("[TerrainInitialization]   - TilemapCollider2D偏移设为(0, 1)");
-        Debug.Log("[TerrainInitialization]   - CompositeCollider2D偏移设为(0, 1)");
-        Debug.Log("[TerrainInitialization]   - 碰撞器已强制刷新");
-        Debug.Log("[TerrainInitialization] 💡 如果问题仍然存在，请检查Grid组件的Cell Size设置");
+        // Debug.Log("[TerrainInitialization] ✅ Tilemap对齐和碰撞箱偏移修复完成！");
+        // Debug.Log("[TerrainInitialization] 🎯 所有碰撞箱已向上移动1格，现在应该与视觉位置完全对齐！");
+        // Debug.Log("[TerrainInitialization] 📋 修复内容:");
+        // Debug.Log("[TerrainInitialization]   - Tilemap位置和锚点重置为零");
+        // Debug.Log("[TerrainInitialization]   - TilemapCollider2D偏移设为(0, 1)");
+        // Debug.Log("[TerrainInitialization]   - CompositeCollider2D偏移设为(0, 1)");
+        // Debug.Log("[TerrainInitialization]   - 碰撞器已强制刷新");
+        // Debug.Log("[TerrainInitialization] 💡 如果问题仍然存在，请检查Grid组件的Cell Size设置");
     }
     
     /// <summary>
@@ -2230,7 +2266,7 @@ public class TerrainInitialization : MonoBehaviour
     [ContextMenu("应用宏伟地形预设")]
     public void ApplyGrandTerrainPreset()
     {
-        Debug.Log("[TerrainInitialization] 应用宏伟地形预设配置...");
+        // Debug.Log("[TerrainInitialization] 应用宏伟地形预设配置...");
         
         // 大型地图设置
         mapWidth = 100;
@@ -2889,7 +2925,7 @@ public class TerrainInitialization : MonoBehaviour
         Vector2Int playerGridPos = WorldToGrid(playerTransform.position);
         int safeZone = 8; // 8格安全区
         
-        Debug.Log($"[TerrainInitialization] 🛡️ 强制清理玩家区域: {playerGridPos}, 安全区 {safeZone}");
+        // Debug.Log($"[TerrainInitialization] 🛡️ 强制清理玩家区域: {playerGridPos}, 安全区 {safeZone}");
         
         int clearedCount = 0;
         
@@ -2924,7 +2960,7 @@ public class TerrainInitialization : MonoBehaviour
             }
         }
         
-        Debug.Log($"[TerrainInitialization] 🛡️ 强制清理完成，处理了 {clearedCount} 个地块");
+        // Debug.Log($"[TerrainInitialization] 🛡️ 强制清理完成，处理了 {clearedCount} 个地块");
     }
     
     /// <summary>
@@ -3619,8 +3655,8 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 地图边界初始化: Min{currentMapMin} Max{currentMapMax}");
-            Debug.Log($"[TerrainInitialization] 地图尺寸: {mapWidth}x{mapHeight}, 偏移: {terrainOffset}");
+            // Debug.Log($"[TerrainInitialization] 地图边界初始化: Min{currentMapMin} Max{currentMapMax}");
+            // Debug.Log($"[TerrainInitialization] 地图尺寸: {mapWidth}x{mapHeight}, 偏移: {terrainOffset}");
         }
     }
     
@@ -3680,7 +3716,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 开始向{direction}方向扩展地图，扩展大小: {expansionSize}");
+            // Debug.Log($"[TerrainInitialization] 开始向{direction}方向扩展地图，扩展大小: {expansionSize}");
         }
         
         // 计算新的地图边界
@@ -3718,10 +3754,7 @@ public class TerrainInitialization : MonoBehaviour
         currentMapMin = newMapMin;
         currentMapMax = newMapMax;
         
-        if (showDebugInfo)
-        {
-            Debug.Log($"[TerrainInitialization] 地图扩展完成，新边界: Min{currentMapMin} Max{currentMapMax}");
-        }
+        // if (showDebugInfo) { Debug.Log($"[TerrainInitialization] 地图扩展完成，新边界: Min{currentMapMin} Max{currentMapMax}"); }
         
         isExpanding = false;
     }
@@ -3786,7 +3819,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 扩展区域生成完成，新增{newTiles.Count}个地块");
+            // Debug.Log($"[TerrainInitialization] 扩展区域生成完成，新增{newTiles.Count}个地块");
         }
     }
     
@@ -3795,7 +3828,7 @@ public class TerrainInitialization : MonoBehaviour
     /// </summary>
     private void SmoothExpandedWaterBoundaries(Vector2Int newMapMin, Vector2Int newMapMax)
     {
-        Debug.Log("[TerrainInitialization] 🌊 开始平滑扩展区域水域边界...");
+        // Debug.Log("[TerrainInitialization] 🌊 开始平滑扩展区域水域边界...");
         
         int totalRemovedCount = 0;
         int iteration = 0;
@@ -3828,7 +3861,7 @@ public class TerrainInitialization : MonoBehaviour
             // 如果没有需要移除的水域，结束循环
             if (waterToRemove.Count == 0)
             {
-                Debug.Log($"[TerrainInitialization] ✅ 扩展区域水域边界平滑完成！第 {iteration} 轮后无更多需要移除的水域");
+                // Debug.Log($"[TerrainInitialization] ✅ 扩展区域水域边界平滑完成！第 {iteration} 轮后无更多需要移除的水域");
                 break;
             }
             
@@ -3851,17 +3884,17 @@ public class TerrainInitialization : MonoBehaviour
             }
             
             totalRemovedCount += waterToRemove.Count;
-            Debug.Log($"[TerrainInitialization] 🔄 扩展区域第 {iteration} 轮：移除了 {waterToRemove.Count} 个被过度包围的水域瓦片");
+            // Debug.Log($"[TerrainInitialization] 🔄 扩展区域第 {iteration} 轮：移除了 {waterToRemove.Count} 个被过度包围的水域瓦片");
             
             // 安全检查：避免无限循环
             if (iteration > 20)
             {
-                Debug.LogWarning("[TerrainInitialization] ⚠️ 扩展区域水域边界平滑达到最大迭代次数，强制停止");
+                // Debug.LogWarning("[TerrainInitialization] ⚠️ 扩展区域水域边界平滑达到最大迭代次数，强制停止");
                 break;
             }
         }
         
-        Debug.Log($"[TerrainInitialization] 🎯 扩展区域水域边界平滑总结：共 {iteration} 轮，移除 {totalRemovedCount} 个水域瓦片");
+        // Debug.Log($"[TerrainInitialization] 🎯 扩展区域水域边界平滑总结：共 {iteration} 轮，移除 {totalRemovedCount} 个水域瓦片");
     }
     
     /// <summary>
@@ -3895,7 +3928,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (shouldRemove && showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 🚫 标记移除扩展区域水域 {waterTile}：{grassNeighborCount}/4 面被草地包围");
+            // Debug.Log($"[TerrainInitialization] 🚫 标记移除扩展区域水域 {waterTile}：{grassNeighborCount}/4 面被草地包围");
         }
         
         return shouldRemove;
@@ -4040,7 +4073,7 @@ public class TerrainInitialization : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"[TerrainInitialization] 扩展区域水域生成完成: {generatedWaterTiles}/{targetWaterTiles}，水域数量: {expandedWaterCenters.Count}");
+            // Debug.Log($"[TerrainInitialization] 扩展区域水域生成完成: {generatedWaterTiles}/{targetWaterTiles}，水域数量: {expandedWaterCenters.Count}");
         }
     }
     

@@ -43,7 +43,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
         // 再等待0.1秒，确保NineSelectionButtons的自动匹配完成
         yield return new WaitForSeconds(0.1f);
         
-        Debug.Log($"[SlotOccupancyIndicator] {gameObject.name} 开始延迟状态更新");
+        // Debug.Log($"[SlotOccupancyIndicator] {gameObject.name} 开始延迟状态更新");
         UpdateStatusDisplay();
         
         // 再等待0.5秒后再次更新，确保万无一失
@@ -81,7 +81,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
     {
         if (statusImage == null) 
         {
-            Debug.LogWarning($"[SlotOccupancyIndicator] {gameObject.name} 的 statusImage 为空！");
+            // Debug.LogWarning($"[SlotOccupancyIndicator] {gameObject.name} 的 statusImage 为空！");
             return;
         }
 
@@ -91,7 +91,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
             selectionButton = GetComponent<NineSelectionButtons>();
             if (selectionButton == null)
             {
-                Debug.LogWarning($"[SlotOccupancyIndicator] {gameObject.name} 无法找到 NineSelectionButtons 组件！");
+                // Debug.LogWarning($"[SlotOccupancyIndicator] {gameObject.name} 无法找到 NineSelectionButtons 组件！");
                 return;
             }
         }
@@ -102,8 +102,8 @@ public class SlotOccupancyIndicator : MonoBehaviour
         // 如果战斗按钮为空，记录详细信息并使用默认状态
         if (correspondingBattleButton == null)
         {
-            Debug.LogWarning($"[SlotOccupancyIndicator] {gameObject.name} 无法获取对应的战斗按钮！");
-            Debug.LogWarning($"[SlotOccupancyIndicator] 选择按钮: {(selectionButton != null ? selectionButton.name : "NULL")}");
+            // Debug.LogWarning($"[SlotOccupancyIndicator] {gameObject.name} 无法获取对应的战斗按钮！");
+            // Debug.LogWarning($"[SlotOccupancyIndicator] 选择按钮: {(selectionButton != null ? selectionButton.name : "NULL")}");
             
             // 使用默认可用状态
             statusImage.color = availableColor;
@@ -122,7 +122,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
             statusImage.color = availableColor;  // 绿色 - 可用
             statusImage.fillAmount = 1f; // 满条显示
             currentStatus = $"{buttonPosition}: 可用 (技能{skillId})";
-            Debug.Log($"[SlotOccupancyIndicator] {buttonPosition} 状态: 可用（绿色）- 技能{skillId}");
+            // Debug.Log($"[SlotOccupancyIndicator] {buttonPosition} 状态: 可用（绿色）- 技能{skillId}");
         }
         else
         {
@@ -130,7 +130,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
             statusImage.color = occupiedColor;   // 红色 - 已占用
             statusImage.fillAmount = 1f; // 满条显示
             currentStatus = $"{buttonPosition}: 已占用 (技能{skillId})";
-            Debug.Log($"[SlotOccupancyIndicator] {buttonPosition} 状态: 已占用（红色）- 技能{skillId}");
+            // Debug.Log($"[SlotOccupancyIndicator] {buttonPosition} 状态: 已占用（红色）- 技能{skillId}");
         }
         
         // 确保状态Image可见
@@ -153,7 +153,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
     public static void UpdateAllSlotIndicators()
     {
         SlotOccupancyIndicator[] allIndicators = FindObjectsOfType<SlotOccupancyIndicator>();
-        Debug.Log($"[SlotOccupancyIndicator] 找到 {allIndicators.Length} 个槽位指示器，开始更新状态");
+        // Debug.Log($"[SlotOccupancyIndicator] 找到 {allIndicators.Length} 个槽位指示器，开始更新状态");
         
         foreach (var indicator in allIndicators)
         {
@@ -162,7 +162,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
         
         // 同时更新所有选择按钮的显示
         NineSelectionButtons[] allSelectionButtons = FindObjectsOfType<NineSelectionButtons>();
-        Debug.Log($"[SlotOccupancyIndicator] 找到 {allSelectionButtons.Length} 个选择按钮，开始更新显示");
+        // Debug.Log($"[SlotOccupancyIndicator] 找到 {allSelectionButtons.Length} 个选择按钮，开始更新显示");
         
         foreach (var selectionButton in allSelectionButtons)
         {
@@ -176,7 +176,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
     [ContextMenu("重新关联选择按钮")]
     public void TestReconnectSelectionButton()
     {
-        Debug.Log($"[SlotOccupancyIndicator] 重新关联选择按钮 {gameObject.name}");
+        // Debug.Log($"[SlotOccupancyIndicator] 重新关联选择按钮 {gameObject.name}");
         selectionButton = GetComponent<NineSelectionButtons>();
         UpdateStatusDisplay();
     }
@@ -187,7 +187,7 @@ public class SlotOccupancyIndicator : MonoBehaviour
     [ContextMenu("测试状态更新")]
     public void TestStatusUpdate()
     {
-        Debug.Log($"[SlotOccupancyIndicator] 测试更新 {gameObject.name} 的状态");
+        // Debug.Log($"[SlotOccupancyIndicator] 测试更新 {gameObject.name} 的状态");
         UpdateStatusDisplay();
     }
 
@@ -197,10 +197,10 @@ public class SlotOccupancyIndicator : MonoBehaviour
     [ContextMenu("强制刷新所有状态")]
     public static void ForceRefreshAllStates()
     {
-        Debug.Log("[SlotOccupancyIndicator] ===== 强制刷新所有状态 =====");
+        // Debug.Log("[SlotOccupancyIndicator] ===== 强制刷新所有状态 =====");
         
         SlotOccupancyIndicator[] allIndicators = FindObjectsOfType<SlotOccupancyIndicator>();
-        Debug.Log($"[SlotOccupancyIndicator] 找到 {allIndicators.Length} 个状态指示器");
+        // Debug.Log($"[SlotOccupancyIndicator] 找到 {allIndicators.Length} 个状态指示器");
         
         foreach (var indicator in allIndicators)
         {
@@ -211,12 +211,12 @@ public class SlotOccupancyIndicator : MonoBehaviour
                 {
                     string pos = indicator.selectionButton.GetDisplayPosition();
                     string skill = battleButton.skillId;
-                    Debug.Log($"[SlotOccupancyIndicator] {pos} 按钮当前技能: {skill}");
+                    // Debug.Log($"[SlotOccupancyIndicator] {pos} 按钮当前技能: {skill}");
                 }
             }
             indicator.UpdateStatusDisplay();
         }
         
-        Debug.Log("[SlotOccupancyIndicator] ===== 状态刷新完成 =====");
+        // Debug.Log("[SlotOccupancyIndicator] ===== 状态刷新完成 =====");
     }
 }

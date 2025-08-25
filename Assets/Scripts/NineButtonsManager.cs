@@ -13,7 +13,7 @@ namespace MyGame.UI
         private void Start()
         {
             if (buttons.Count == 0)
-                Debug.LogWarning("[NineButtonsManager] 未分配任何战斗用按键");
+                ; // Debug.LogWarning("[NineButtonsManager] 未分配任何战斗用按键");
         }
     }
 }

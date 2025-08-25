@@ -44,6 +44,22 @@ namespace MyGame.Environment
         private int currentHealth;
         private bool isDestroyed = false;
         
+        [Header("调试输出")]
+        [SerializeField] private bool enableDebugLogs = false; // 关闭则不输出任何Bush相关日志
+
+        private void Log(string msg)
+        {
+            if (enableDebugLogs) Debug.Log(msg);
+        }
+        private void LogWarning(string msg)
+        {
+            if (enableDebugLogs) Debug.LogWarning(msg);
+        }
+        private void LogError(string msg)
+        {
+            if (enableDebugLogs) Debug.LogError(msg);
+        }
+
         // 摇摆动画相关
         private float swayTimer = 0f;
         private bool isSwaying = false;
@@ -60,28 +76,28 @@ namespace MyGame.Environment
             // 检查组件是否存在
             if (spriteRenderer == null)
             {
-                Debug.LogError($"[Bush] {gameObject.name} 缺少 SpriteRenderer 组件！");
+                LogError($"[Bush] {gameObject.name} 缺少 SpriteRenderer 组件！");
             }
             else if (spriteRenderer.sprite == null)
             {
-                Debug.LogWarning($"[Bush] {gameObject.name} 的 SpriteRenderer 没有分配 Sprite！请在Inspector中分配图片。");
+                LogWarning($"[Bush] {gameObject.name} 的 SpriteRenderer 没有分配 Sprite！请在Inspector中分配图片。");
                 // 创建一个临时的默认方块作为占位符
                 CreateDefaultSprite();
             }
             
             if (boxCollider == null)
             {
-                Debug.LogError($"[Bush] {gameObject.name} 缺少 BoxCollider2D 组件！");
+                LogError($"[Bush] {gameObject.name} 缺少 BoxCollider2D 组件！");
             }
             
             if (facingCamera == null)
             {
-                Debug.LogError($"[Bush] {gameObject.name} 缺少 FacingCamera 组件！");
+                LogError($"[Bush] {gameObject.name} 缺少 FacingCamera 组件！");
             }
             
             if (dynamicSorting == null)
             {
-                Debug.LogError($"[Bush] {gameObject.name} 缺少 DynamicSorting 组件！");
+                LogError($"[Bush] {gameObject.name} 缺少 DynamicSorting 组件！");
             }
             
             // 保存原始状态
@@ -100,10 +116,10 @@ namespace MyGame.Environment
             // 设置初始旋转（面向摄像机的三渲二角度）
             transform.rotation = Quaternion.Euler(-45f, 0f, 0f);
             
-            Debug.Log($"[Bush] {gameObject.name} 初始化完成，位置: {transform.position}，旋转: {transform.rotation.eulerAngles}");
-            Debug.Log($"[Bush] SpriteRenderer: {(spriteRenderer != null ? "存在" : "缺失")}");
-            Debug.Log($"[Bush] Sprite: {(spriteRenderer != null && spriteRenderer.sprite != null ? spriteRenderer.sprite.name : "未分配")}");
-            Debug.Log($"[Bush] FacingCamera: {(facingCamera != null ? "存在" : "缺失")}");
+            Log($"[Bush] {gameObject.name} 初始化完成，位置: {transform.position}，旋转: {transform.rotation.eulerAngles}");
+            Log($"[Bush] SpriteRenderer: {(spriteRenderer != null ? "存在" : "缺失")}");
+            Log($"[Bush] Sprite: {(spriteRenderer != null && spriteRenderer.sprite != null ? spriteRenderer.sprite.name : "未分配")}");
+            Log($"[Bush] FacingCamera: {(facingCamera != null ? "存在" : "缺失")}");
         }
         
         private void Start()
@@ -165,7 +181,7 @@ namespace MyGame.Environment
             if (spriteRenderer != null)
             {
                 spriteRenderer.sprite = defaultSprite;
-                Debug.Log($"[Bush] {gameObject.name} 已创建默认占位符Sprite");
+                Log($"[Bush] {gameObject.name} 已创建默认占位符Sprite");
             }
         }
 
@@ -320,7 +336,7 @@ namespace MyGame.Environment
                 // 触发摇摆效果
                 TriggerSway();
                 
-                Debug.Log($"[Bush] {gameObject.name} 被 {other.gameObject.name} 触碰，触发摇摆");
+                Log($"[Bush] {gameObject.name} 被 {other.gameObject.name} 触碰，触发摇摆");
                 
                 // 如果可破坏，减少血量
                 if (isDestructible && !isDestroyed)
@@ -338,7 +354,7 @@ namespace MyGame.Environment
             if (isPlayer || isEnemy)
             {
                 TriggerSway();
-                Debug.Log($"[Bush] {gameObject.name} 结束碰撞于 {other.gameObject.name}，再次触发摇摆");
+                Log($"[Bush] {gameObject.name} 结束碰撞于 {other.gameObject.name}，再次触发摇摆");
             }
         }
         
@@ -351,7 +367,7 @@ namespace MyGame.Environment
             {
                 isSwaying = true;
                 swayStartTime = Time.time; // 记录摇摆开始时间
-                Debug.Log($"[Bush] {gameObject.name} 开始强化摇摆，幅度: {collisionSwayAmount}, 速度: {collisionSwaySpeed}, 持续: {collisionSwayDuration}s");
+                Log($"[Bush] {gameObject.name} 开始强化摇摆，幅度: {collisionSwayAmount}, 速度: {collisionSwaySpeed}, 持续: {collisionSwayDuration}s");
             }
         }
         
@@ -364,7 +380,7 @@ namespace MyGame.Environment
             if (isDestroyed || !isDestructible) return;
             
             currentHealth -= damage;
-            Debug.Log($"[Bush] {gameObject.name} 受到 {damage} 伤害，剩余血量: {currentHealth}");
+            Log($"[Bush] {gameObject.name} 受到 {damage} 伤害，剩余血量: {currentHealth}");
             
             // 血量归零时销毁
             if (currentHealth <= 0)
@@ -386,7 +402,7 @@ namespace MyGame.Environment
             if (isDestroyed) return;
             
             isDestroyed = true;
-            Debug.Log($"[Bush] {gameObject.name} 被摧毁");
+            Log($"[Bush] {gameObject.name} 被摧毁");
             
             // 播放销毁动画
             StartCoroutine(DestructionAnimation());

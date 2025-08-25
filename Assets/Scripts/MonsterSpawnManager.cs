@@ -76,7 +76,7 @@ public class MonsterSpawnManager : MonoBehaviour
     {
         if (enemyPrefab == null || player == null)
         {
-            Debug.LogWarning("[MonsterSpawnManager] Missing player or enemyPrefab.");
+            // Debug.LogWarning("[MonsterSpawnManager] Missing player or enemyPrefab.");
             return;
         }
 
@@ -96,7 +96,7 @@ public class MonsterSpawnManager : MonoBehaviour
             deathHook.expAmount = 10;
             spawned++;
         }
-        Debug.Log($"[MonsterSpawnManager] Spawned {spawned}/{count} enemies");
+        // Debug.Log($"[MonsterSpawnManager] Spawned {spawned}/{count} enemies");
     }
 
     private System.Collections.IEnumerator AutoWaveSpawn()

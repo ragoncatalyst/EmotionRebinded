@@ -25,9 +25,16 @@ public class ChargeJoystick : MonoBehaviour
     [Header("Skill Casting")]
     public string skillId = "06";              // 释放的技能编号
     public PlayerController player;            // 自动在场景内查找Tag=Player
+    public bool executeSkillOnRelease = true;  // 释放时是否自动调用技能
+
+    [Header("Block Conditions")]
+    public bool disableWhenUpgradePanelOpen = true; // 升级面板打开时禁用
+    public UpgradePanelController upgradePanel;     // 自动场景查找
 
     [Header("Events")]
     public UnityEvent<float> onRelease;        // 参数为[0,1]的充能系数
+    public UnityEvent onStartCharge;           // 开始充能时
+    public UnityEvent<float> onCharging;       // 充能进行中(每帧传递进度)
 
     private bool isCharging;
     private float chargeTimer;
@@ -39,15 +46,45 @@ public class ChargeJoystick : MonoBehaviour
             var pgo = GameObject.FindWithTag("Player");
             if (pgo != null) player = pgo.GetComponent<PlayerController>();
         }
+
+        if (upgradePanel == null)
+        {
+            // 先尝试通过 Tag 查找，再兜底场景扫描
+            var owner = GameObject.FindWithTag("GameController");
+            if (owner != null)
+            {
+                upgradePanel = owner.GetComponentInChildren<UpgradePanelController>();
+            }
+            if (upgradePanel == null)
+            {
+                upgradePanel = FindObjectOfType<UpgradePanelController>();
+            }
+        }
     }
 
     private void Update()
     {
+        if (IsInputBlocked())
+        {
+            // 若被阻断且仍在充能，复位显示
+            if (isCharging)
+            {
+                isCharging = false;
+                if (resetRotationOnRelease && knob != null)
+                {
+                    knob.localRotation = Quaternion.identity;
+                }
+                UpdateFill(0f);
+            }
+            return;
+        }
+
         // 开始充能
         if (Input.GetKeyDown(chargeKey))
         {
             isCharging = true;
             chargeTimer = 0f;
+            onStartCharge?.Invoke();
         }
 
         // 按住充能 + 旋转摇杆
@@ -59,6 +96,7 @@ public class ChargeJoystick : MonoBehaviour
                 knob.Rotate(0f, 0f, -rotationSpeed * Time.deltaTime);
             }
             UpdateFill();
+            onCharging?.Invoke(Mathf.Clamp01(chargeTimer / Mathf.Max(0.0001f, maxChargeTime)));
         }
 
         // 释放：计算充能系数并施放技能
@@ -72,7 +110,7 @@ public class ChargeJoystick : MonoBehaviour
             onRelease?.Invoke(ratio);
 
             // 释放技能
-            if (player != null && !string.IsNullOrEmpty(skillId))
+            if (executeSkillOnRelease && player != null && !string.IsNullOrEmpty(skillId))
             {
                 player.ExecuteSkill(skillId);
             }
@@ -84,6 +122,15 @@ public class ChargeJoystick : MonoBehaviour
 
             UpdateFill(0f);
         }
+    }
+
+    private bool IsInputBlocked()
+    {
+        if (!disableWhenUpgradePanelOpen || upgradePanel == null) return false;
+        // 面板打开或正在选择时不响应
+        if (upgradePanel.IsPanelOpen) return true;
+        if (upgradePanel.IsChoosingOptions) return true;
+        return false;
     }
 
     private void UpdateFill(float overrideValue = -1f)
