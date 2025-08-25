@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &6104767381280618363
+--- !u!1 &6880365764667941097
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,41 +8,39 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4539318156975854428}
-  - component: {fileID: 3081954903630271275}
-  - component: {fileID: 2719746508632740050}
-  - component: {fileID: 3314940445018925221}
-  - component: {fileID: 5587734311851449194}
-  - component: {fileID: 2811394114859082223}
+  - component: {fileID: 1078812373661712332}
+  - component: {fileID: 6330969559768182975}
+  - component: {fileID: 5100826356064835841}
+  - component: {fileID: 1270257768174606582}
   m_Layer: 0
-  m_Name: Chest
+  m_Name: BulletNovaBlast
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4539318156975854428
+--- !u!4 &1078812373661712332
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6104767381280618363}
+  m_GameObject: {fileID: 6880365764667941097}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.38268346, y: 0, z: 0, w: 0.9238795}
-  m_LocalPosition: {x: 0.18, y: -11.97, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 569, y: -284, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!212 &3081954903630271275
+--- !u!212 &6330969559768182975
 SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6104767381280618363}
+  m_GameObject: {fileID: 6880365764667941097}
   m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
@@ -77,8 +75,8 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.9622642, g: 0.8348701, b: 0.5310609, a: 1}
+  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -88,37 +86,13 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &2719746508632740050
-MonoBehaviour:
+--- !u!58 &5100826356064835841
+CircleCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6104767381280618363}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b3081b2626c174ed5a0e9c4710fda40b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  autoAddDynamicSorting: 1
-  sortingType: 3
-  sortingOffset: {x: 0, y: -0.5}
-  requiredTag: Player
-  useTrigger: 1
-  openDelay: 0
-  upgradePanel: {fileID: 0}
-  autoFindPanelInScene: 1
-  panelOwnerTag: GameManager
-  oneTimeUse: 1
-  destroyOnUse: 1
-  reuseCooldown: 5
---- !u!61 &3314940445018925221
-BoxCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6104767381280618363}
+  m_GameObject: {fileID: 6880365764667941097}
   m_Enabled: 1
   m_Density: 1
   m_Material: {fileID: 0}
@@ -145,54 +119,21 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
-    adaptiveTilingThreshold: 0.5
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 1, y: 1}
-  m_EdgeRadius: 0
---- !u!114 &5587734311851449194
+  m_Radius: 0.5
+--- !u!114 &1270257768174606582
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6104767381280618363}
+  m_GameObject: {fileID: 6880365764667941097}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b85da42144e964ef0b9d1512fcc896ac, type: 3}
+  m_Script: {fileID: 11500000, guid: 47d2cba660f39439394f11983c6020c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &2811394114859082223
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6104767381280618363}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7a4c5d12b95a7482f87fdc1f459df06c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  baseSortingOrder: 60
-  sortingPrecision: 10
-  updateEveryFrame: 1
-  useZDepthSorting: 0
-  depthPerUnit: 0.001
-  baseZ: 0
-  yOcclusionBias: 0
-  xTieBreaker: 0
-  minSortingOrder: -30000
-  maxSortingOrder: 32767
-  sortingOffset: {x: 0, y: -0.5}
-  showSortingPoint: 1
-  occlusionOffset: {x: 0, y: -0.5}
-  objectType: 3
-  enableDebugLogs: 0
+  damage: 20
+  targetDiameter: 50
+  expandDuration: 0.35
+  fadeDuration: 0.8

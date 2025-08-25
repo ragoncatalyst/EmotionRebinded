@@ -586,6 +586,8 @@ public class UpgradePanelController : MonoBehaviour
             // Debug.Log($"[UpgradePanelController] ClosePanel 捕获到待打开请求，剩余 {pendingOpenRequests}，立即刷新面板");
             // 重置流程：隐藏九宫格，重新分配选项并播放进入动画
             if (gridParent != null) gridParent.gameObject.SetActive(false);
+            // 在下一轮绑定开始前，清除所有“再次点击确认”提示
+            NineSelectionButtons.ClearAllConfirmPrompts();
             AssignRandomOptionsFromPool();
             isChoosingOptions = true;
             PrepareOptionsForEnter();
@@ -615,6 +617,9 @@ public class UpgradePanelController : MonoBehaviour
 
         // ⭐ 禁用选择按钮的键盘输入
         NineSelectionButtons.DisableAllKeyboardInput();
+
+        // ⭐ 彻底清除确认提示，为下次绑定做准备
+        NineSelectionButtons.ClearAllConfirmPrompts();
 
         // ⭐ 恢复摄像机拉远
         var camFollow = Camera.main != null ? Camera.main.GetComponent<CameraFollowing>() : null;

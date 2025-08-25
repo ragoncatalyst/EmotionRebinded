@@ -20,25 +20,42 @@ public enum ObjectType
 public class DynamicSorting : MonoBehaviour
 {
     [Header("动态排序设置")]
-    [SerializeField] private int baseSortingOrder = 100;      // 基础排序层级
-    [SerializeField] private float sortingPrecision = 10f;    // 排序精度（Y坐标乘数）
     [SerializeField] private bool updateEveryFrame = true;    // 是否每帧更新
+    [Tooltip("使用Z深度排序（会改Z，不推荐在透视相机下）。关闭则使用Sorting Order，不改物体位置。")]
+    [SerializeField] private bool useZDepthSorting = false;   // 默认关闭Z改动，避免视觉位移
+    [Tooltip("以世界单位换算Z深度。值越大，y改变对遮挡影响越明显。")]
+    [SerializeField] private float depthPerUnit = 0.001f;     // y到z映射比例
+    [SerializeField] private float baseZ = 0f;                // 基准Z（通常0）
+    [Tooltip("同一y时按x微量推开，避免抖动。保持很小，例如0或1e-5。")]
+    [SerializeField] private float xTieBreaker = 0f;
     
-    [Header("排序层级限制")]
-    [SerializeField] private int minSortingOrder = -30000;    // 最小排序层级（但仍高于地面-32768）
-    [SerializeField] private int maxSortingOrder = 32767;     // 最大排序层级（最大可能值）
+    [Header("排序层级限制（仅旧算法时可用）")]
+    [SerializeField] private int minSortingOrder = -30000;
+    [SerializeField] private int maxSortingOrder = 32767;
     
-    [Header("参考位置配置")]
-    [SerializeField] private Vector2 sortingOffset = new Vector2(0f, -0.5f); // 排序计算的偏移量（默认向下偏移到脚部）
+    [Header("参考位置配置（固定标准值）")]
+    [HideInInspector] public Vector2 sortingOffset = new Vector2(0f, -0.5f); // 固定标准，不再由Inspector调节
     [SerializeField] private bool showSortingPoint = true;    // 是否在Scene视图中显示排序点（默认开启）
+
+    [Header("判定线（Z深度模式）配置")]
+    [Tooltip("当启用Z深度排序时，这里的XY就是‘判定线相对物体原点的偏移’，不再代表排序序号。\n例如 (0,-0.5) 代表以脚底为判定线；其他物体相对这个线的Y高低决定遮挡关系。")]
+    [SerializeField] private Vector2 occlusionOffset = new Vector2(0f, -0.5f);
     
-    [Header("物体类型快速配置")]
-    [SerializeField] private ObjectType objectType = ObjectType.Custom;      // 物体类型（用于快速配置参考位置）
-    [SerializeField] private bool enableDebugLogs = false;                   // 是否输出配置日志
+    [Header("物体类型快速配置（仅用于一次性预设occlusionOffset）")]
+    [SerializeField] private ObjectType objectType = ObjectType.Custom;
+    [SerializeField] private bool enableDebugLogs = false;
     
     private SpriteRenderer spriteRenderer;
     private int lastSortingOrder = int.MinValue;
     private ObjectType lastObjectType = ObjectType.Custom;  // 记录上次的物体类型，用于检测变化
+
+    // 旧算法的固定常量，供调试/回退方法使用
+    private const int kBaseSortingOrderLegacy = 100;
+    private const float kSortingPrecisionLegacy = 10f;
+
+    // 为兼容旧接口/调试菜单保留的内部变量（不再暴露到Inspector）
+    [System.NonSerialized] private int baseSortingOrder = kBaseSortingOrderLegacy;
+    [System.NonSerialized] private float sortingPrecision = kSortingPrecisionLegacy;
     
     private void Awake()
     {
@@ -66,7 +83,7 @@ public class DynamicSorting : MonoBehaviour
     
     private void Start()
     {
-        // 初始化排序层级
+        // 初始化排序
         UpdateSortingOrder();
     }
     
@@ -79,10 +96,7 @@ public class DynamicSorting : MonoBehaviour
             lastObjectType = objectType;
         }
         
-        if (updateEveryFrame)
-        {
-            UpdateSortingOrder();
-        }
+        if (updateEveryFrame) UpdateSortingOrder();
     }
     
     /// <summary>
@@ -91,30 +105,32 @@ public class DynamicSorting : MonoBehaviour
     public void UpdateSortingOrder()
     {
         if (spriteRenderer == null) return;
-        
-        // 计算用于排序的实际位置（加上偏移量）
-        Vector3 sortingPosition = transform.position + (Vector3)sortingOffset;
-        
-        // 基于Y坐标计算排序层级
-        // Y坐标越小（越靠下），排序层级越高（越靠前）
-        int calculatedSortingOrder = baseSortingOrder - Mathf.RoundToInt(sortingPosition.y * sortingPrecision);
-        
-        // 限制排序层级在安全范围内，防止过小或过大导致渲染问题
-        int newSortingOrder = Mathf.Clamp(calculatedSortingOrder, minSortingOrder, maxSortingOrder);
-        
-        // 如果计算值被限制了，输出警告
-        if (calculatedSortingOrder != newSortingOrder)
+
+        Vector3 worldPos = transform.position;
+        Vector3 sortingPosition = worldPos + (Vector3)sortingOffset; // 旧算法使用
+
+        if (useZDepthSorting)
         {
-            // Debug.LogWarning($"[DynamicSorting] {gameObject.name} 排序层级被限制: 计算值{calculatedSortingOrder} → 限制后{newSortingOrder} (Y:{sortingPosition.y:F2})");
+            // 改为：即使启用Z模式，也不再写入transform.z，避免视觉位移；只映射到SortingOrder
+            Vector3 occlusionPos = worldPos + (Vector3)occlusionOffset;
+            int orderZMode = kBaseSortingOrderLegacy - Mathf.RoundToInt(occlusionPos.y * kSortingPrecisionLegacy);
+            int clampedZMode = Mathf.Clamp(orderZMode, minSortingOrder, maxSortingOrder);
+            if (lastSortingOrder != clampedZMode)
+            {
+                spriteRenderer.sortingOrder = clampedZMode;
+                lastSortingOrder = clampedZMode;
+            }
+            return;
         }
-        
-        // 只在排序层级改变时更新，避免不必要的性能消耗
+
+        // 旧的SortingOrder方案（不改Z）：用“判定线”计算order
+        Vector3 occlusionPosLegacy = worldPos + (Vector3)occlusionOffset;
+        int calculatedSortingOrder = kBaseSortingOrderLegacy - Mathf.RoundToInt(occlusionPosLegacy.y * kSortingPrecisionLegacy);
+        int newSortingOrder = Mathf.Clamp(calculatedSortingOrder, minSortingOrder, maxSortingOrder);
         if (lastSortingOrder != newSortingOrder)
         {
             spriteRenderer.sortingOrder = newSortingOrder;
             lastSortingOrder = newSortingOrder;
-            
-            // Debug.Log($"[DynamicSorting] {gameObject.name} 排序Y:{sortingPosition.y:F2} → 排序层级:{newSortingOrder}");
         }
     }
     
@@ -157,30 +173,27 @@ public class DynamicSorting : MonoBehaviour
     /// </summary>
     private void ApplyObjectTypeConfiguration()
     {
+        // 不自动覆盖 Inspector 的 occlusionOffset，仅提供建议值（注释）。
         switch (objectType)
         {
             case ObjectType.Player:
-                baseSortingOrder = 100;   // 正常基础层级
-                // 保留 Inspector 中的 sortingOffset，不再强制为 (0,0)
+                // 建议默认：occlusionOffset = new Vector2(0f, -0.5f);
                 if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Player类型 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Enemy:
-                baseSortingOrder = 80;    // 略低于Player
-                // 保留 Inspector 配置，不再强制改写 Y 偏移
+                // 建议默认：occlusionOffset = new Vector2(0f, -0.5f);
                 if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Enemy类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Bush:
-                baseSortingOrder = 50;    // 低于Player，确保能被Player遮挡，但能遮挡Player
-                // 保留 Inspector 配置，不再强制改写 Y 偏移
+                // 建议默认：occlusionOffset = new Vector2(0f, -0.5f);
                 if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Bush类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Building:
-                baseSortingOrder = 20;    // 最低基础层级
-                // 保留 Inspector 配置，不再强制改写 Y 偏移
-                if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Building类型 (基础层级: {baseSortingOrder}, 偏移: {sortingOffset})");
+                // 建议默认：occlusionOffset = new Vector2(0f, 0f);
+                if (enableDebugLogs) Debug.Log($"[DynamicSorting] {gameObject.name} 自动配置为Building类型 (基础层级: {baseSortingOrder}, 保留偏移: {sortingOffset})");
                 break;
                 
             case ObjectType.Custom:

@@ -4,7 +4,7 @@ public class Chest : MonoBehaviour
 {
     [Header("Visual & Sorting")]
     [Tooltip("Attach and configure DynamicSorting to make chest stand upright and sort like bushes/players.")]
-    public bool autoAddDynamicSorting = true;
+    public bool autoAddDynamicSorting = false;
     public ObjectType sortingType = ObjectType.Bush; // 让箱子像灌木一样参与遮挡
     public Vector2 sortingOffset = new Vector2(0f, -0.5f);
 
@@ -61,10 +61,7 @@ public class Chest : MonoBehaviour
     {
         if (reuseCooldown < 0f) reuseCooldown = 0f;
         if (openDelay < 0f) openDelay = 0f;
-        if (autoAddDynamicSorting)
-        {
-            EnsureDynamicSorting();
-        }
+        if (autoAddDynamicSorting) EnsureDynamicSorting();
         EnsureFacingCamera();
     } 
 
@@ -152,10 +149,7 @@ public class Chest : MonoBehaviour
 
     private void Awake()
     {
-        if (autoAddDynamicSorting)
-        {
-            EnsureDynamicSorting();
-        }
+        if (autoAddDynamicSorting) EnsureDynamicSorting();
         EnsureFacingCamera();
         // 保证Z轴为0
         var tr = transform;
@@ -176,11 +170,10 @@ public class Chest : MonoBehaviour
 
         var ds = GetComponent<DynamicSorting>();
         if (ds == null) ds = gameObject.AddComponent<DynamicSorting>();
-        // 配置为类似灌木/角色的立式遮挡
         var dsTypeField = typeof(DynamicSorting).GetField("objectType", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         if (dsTypeField != null) dsTypeField.SetValue(ds, sortingType);
         ds.SetSortingOffset(sortingOffset);
-        ds.SetBaseSortingOrder(60); // 介于Bush(50)与Enemy(80)之间
+        ds.SetBaseSortingOrder(60);
         ds.UpdateSortingOrder();
     }
 

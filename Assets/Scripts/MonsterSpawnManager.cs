@@ -16,7 +16,7 @@ public class MonsterSpawnManager : MonoBehaviour
     [SerializeField] private Transform monstersParent; // Optional parent for organization
 
     [Header("Spawn Settings")] 
-    [SerializeField] private int initialCount = 8;
+    [SerializeField] private int initialCount = 4;
     [SerializeField] private int maxTries = 100;
     [SerializeField] private float minDistance = 30f;
     [SerializeField] private float maxDistance = 40f;
@@ -26,7 +26,16 @@ public class MonsterSpawnManager : MonoBehaviour
     [SerializeField] private bool spawnOnStart = true;
     [SerializeField] private bool autoWaveSpawn = true;
     [SerializeField] private float waveIntervalSeconds = 30f;
-    [SerializeField] private int waveCount = 6; // monsters per wave
+    [SerializeField] private int waveCount = 6; // legacy, not used when ramp enabled
+
+    [Header("Ramping (Spawn & Health)")]
+    [Tooltip("When enabled, wave size starts small and increases over time up to a max; enemy health also scales up over time.")]
+    [SerializeField] private bool enableRamping = true;
+    [SerializeField] private int minWaveCount = 3;
+    [SerializeField] private int maxWaveCount = 20;
+    [SerializeField] private float rampDurationSeconds = 300f; // time to reach max
+    [SerializeField] private float healthMultiplierStart = 1f;
+    [SerializeField] private float healthMultiplierMax = 3f;
 
     [Header("Despawn (far away)")]
     [SerializeField] private bool enableFarDespawn = true;
@@ -34,6 +43,7 @@ public class MonsterSpawnManager : MonoBehaviour
     [SerializeField] private float despawnCheckInterval = 3f;
 
     private System.Random rnd;
+    private float startTime;
 
     private void Awake()
     {
@@ -47,9 +57,18 @@ public class MonsterSpawnManager : MonoBehaviour
 
     private void Start()
     {
+        startTime = Time.time;
         if (spawnOnStart)
         {
-            SpawnEnemies(initialCount);
+            if (enableRamping)
+            {
+                int count0 = Mathf.Max(1, Mathf.Min(initialCount, minWaveCount));
+                SpawnEnemies(count0, GetCurrentHealthMultiplier());
+            }
+            else
+            {
+                SpawnEnemies(initialCount);
+            }
         }
 
         if (autoWaveSpawn)
@@ -66,7 +85,15 @@ public class MonsterSpawnManager : MonoBehaviour
     [ContextMenu("Spawn Initial Enemies")] 
     public void SpawnInitialEnemies()
     {
-        SpawnEnemies(initialCount);
+        if (enableRamping)
+        {
+            int count0 = Mathf.Max(1, Mathf.Min(initialCount, minWaveCount));
+            SpawnEnemies(count0, GetCurrentHealthMultiplier());
+        }
+        else
+        {
+            SpawnEnemies(initialCount);
+        }
     }
 
     /// <summary>
@@ -94,9 +121,39 @@ public class MonsterSpawnManager : MonoBehaviour
                 deathHook = inst.AddComponent<OnEnemyDeathExpGiver>();
             }
             deathHook.expAmount = 10;
+            // default: no extra scaling
+            var e0 = inst.GetComponent<Enemy>();
+            if (e0 != null) e0.ApplyHealthMultiplier(1f);
             spawned++;
         }
         // Debug.Log($"[MonsterSpawnManager] Spawned {spawned}/{count} enemies");
+    }
+
+    // Overload with health multiplier
+    public void SpawnEnemies(int count, float healthMultiplier)
+    {
+        if (enemyPrefab == null || player == null)
+        {
+            return;
+        }
+
+        int spawned = 0;
+        for (int i = 0; i < maxTries && spawned < count; i++)
+        {
+            Vector3? pos = SampleSpawnPosition();
+            if (!pos.HasValue) continue;
+            var inst = Instantiate(enemyPrefab, pos.Value, Quaternion.identity);
+            if (monstersParent != null) inst.transform.SetParent(monstersParent);
+            var deathHook = inst.GetComponent<OnEnemyDeathExpGiver>();
+            if (deathHook == null)
+            {
+                deathHook = inst.AddComponent<OnEnemyDeathExpGiver>();
+            }
+            deathHook.expAmount = 10;
+            var e1 = inst.GetComponent<Enemy>();
+            if (e1 != null) e1.ApplyHealthMultiplier(Mathf.Max(0.01f, healthMultiplier));
+            spawned++;
+        }
     }
 
     private System.Collections.IEnumerator AutoWaveSpawn()
@@ -104,7 +161,14 @@ public class MonsterSpawnManager : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(waveIntervalSeconds);
-            SpawnEnemies(waveCount);
+            if (enableRamping)
+            {
+                SpawnEnemies(GetCurrentWaveCount(), GetCurrentHealthMultiplier());
+            }
+            else
+            {
+                SpawnEnemies(waveCount);
+            }
         }
     }
 
@@ -153,6 +217,23 @@ public class MonsterSpawnManager : MonoBehaviour
         }
         return candidate;
     }
+
+    private int GetCurrentWaveCount()
+    {
+        if (!enableRamping) return waveCount;
+        float t = Mathf.Clamp01((Time.time - startTime) / Mathf.Max(0.01f, rampDurationSeconds));
+        float v = Mathf.Lerp(minWaveCount, maxWaveCount, t);
+        return Mathf.RoundToInt(v);
+    }
+
+    private float GetCurrentHealthMultiplier()
+    {
+        if (!enableRamping) return 1f;
+        float t = Mathf.Clamp01((Time.time - startTime) / Mathf.Max(0.01f, rampDurationSeconds));
+        return Mathf.Lerp(healthMultiplierStart, healthMultiplierMax, t);
+    }
+
+    // removed: direct private field access
 }
 
 

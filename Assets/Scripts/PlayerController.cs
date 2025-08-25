@@ -176,11 +176,15 @@ public class PlayerController : MonoBehaviour
     [Header("Skill Prefabs")]
     public GameObject homingBulletPrefab;
     public GameObject piercingShotPrefab;
+    public GameObject novaBlastPrefab;
     [Header("Piercing Shot Config")]
     public float piercingLengthPerSecond = 80f; // 伸长速度（单位/秒）
     public float piercingMaxLength = 50f;       // 最大长度（单位）
     public float piercingThickness = 0.35f;    // 粗细
     public float piercingDamage = 10f;         // 伤害
+
+    [Header("Combat Stats")]
+    public float attackPower = 10f;            // 基础攻击力，用于范围技能伤害
 
     private void CastHomingBullet()
     {
@@ -220,19 +224,50 @@ public class PlayerController : MonoBehaviour
 
     private void CastNovaBlast()
     {
-        // Simple close-range radial damage: overlap circle
-        float radius = 1.6f;
-        float damage = 4f;
-        var hits = Physics2D.OverlapCircleAll(transform.position, radius);
-        foreach (var h in hits)
+        // 采用可扩张弹体，命中一次并淡出
+        GameObject go;
+        if (novaBlastPrefab != null)
         {
-            var e = h.GetComponent<Enemy>();
-            if (e != null)
-            {
-                e.TakeDamage(damage);
-            }
+            go = Instantiate(novaBlastPrefab, transform.position, Quaternion.identity);
         }
-        // could add a VFX prefab here
+        else
+        {
+            // 兜底：即使未绑定预制也创建一个可工作的弹体
+            go = new GameObject("NovaBlast");
+            go.transform.position = transform.position;
+        }
+
+        // 确保必要组件存在
+        var nb = go.GetComponent<NovaBlastProjectile>();
+        if (nb == null) nb = go.AddComponent<NovaBlastProjectile>();
+        var col = go.GetComponent<CircleCollider2D>();
+        if (col == null) { col = go.AddComponent<CircleCollider2D>(); col.isTrigger = true; }
+        var sr = go.GetComponent<SpriteRenderer>();
+        if (sr == null) { sr = go.AddComponent<SpriteRenderer>(); }
+        sr.enabled = true;
+        // 若未配置精灵，使用白色方块作为兜底，至少可见
+        if (sr.sprite == null)
+        {
+            var white = Texture2D.whiteTexture;
+            sr.sprite = Sprite.Create(white, new Rect(0, 0, white.width, white.height), new Vector2(0.5f, 0.5f), 100f);
+        }
+        Color rc = sr.color; rc.a = 1f; sr.color = rc;
+
+        // 强制与玩家同层/同排序，避免被遮挡
+        var psr = GetComponent<SpriteRenderer>();
+        if (psr != null)
+        {
+            sr.sortingLayerID = psr.sortingLayerID;
+            sr.sortingOrder = psr.sortingOrder + 1;
+            go.layer = gameObject.layer;
+        }
+
+        // 复位激活/缩放/Z，确保在视野
+        go.SetActive(true);
+        go.transform.localScale = Vector3.one;
+        var p = go.transform.position; p.z = transform.position.z; go.transform.position = p;
+        // 直径50，快速扩张与渐隐时间可调
+        nb.Initialize(Mathf.Max(0f, attackPower), 50f, 0.35f, 0.8f);
     }
 
     private Enemy FindNearestEnemy()
@@ -243,6 +278,7 @@ public class PlayerController : MonoBehaviour
         foreach (var e in enemies)
         {
             if (e == null || !e.gameObject.activeInHierarchy) continue;
+            if (!e.IsTargetable) continue;
             float d = (e.transform.position - transform.position).sqrMagnitude;
             if (d < best) { best = d; bestE = e; }
         }
@@ -258,6 +294,7 @@ public class PlayerController : MonoBehaviour
         foreach (var e in enemies)
         {
             if (e == null || !e.gameObject.activeInHierarchy) continue;
+            if (!e.IsTargetable) continue;
             float d = (e.transform.position - transform.position).sqrMagnitude;
             if (d <= maxSqr && d < best) { best = d; bestE = e; }
         }

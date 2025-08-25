@@ -161,6 +161,7 @@ MonoBehaviour:
     m_Bits: 1
   fixedZPosition: 1
   baseSortingOrder: 1
+  enableDebugLogs: 0
   enableShadow: 0
   shadowOffset: {x: 0, y: -0.1, z: 0}
   shadowScale: {x: 1, y: 0.5, z: 1}
@@ -190,11 +191,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a4c5d12b95a7482f87fdc1f459df06c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  baseSortingOrder: 0
-  sortingPrecision: 100
   updateEveryFrame: 1
+  useZDepthSorting: 1
+  depthPerUnit: 0.001
+  baseZ: 0
+  xTieBreaker: 0
   minSortingOrder: -32768
   maxSortingOrder: 32767
   sortingOffset: {x: 0, y: -2.5}
   showSortingPoint: 0
+  occlusionOffset: {x: 0, y: -1.6}
   objectType: 3
+  enableDebugLogs: 0

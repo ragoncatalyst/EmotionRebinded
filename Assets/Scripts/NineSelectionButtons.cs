@@ -73,6 +73,20 @@ public class NineSelectionButtons : MonoBehaviour
         UpdateDisplay();
     }
 
+    // 静态：清除所有选择按钮上的“再次点击确认”提示（用于下次绑定前彻底复位）
+    public static void ClearAllConfirmPrompts()
+    {
+        NineSelectionButtons[] all = FindObjectsOfType<NineSelectionButtons>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            var b = all[i];
+            b.awaitingConfirm = false;
+            if (b.confirmLabel != null) b.confirmLabel.gameObject.SetActive(false);
+            Transform t = b.selectionButton != null ? b.selectionButton.transform : b.transform;
+            t.localScale = Vector3.one;
+        }
+    }
+
     /// <summary>
     /// 检测键盘输入
     /// </summary>

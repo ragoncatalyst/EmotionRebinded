@@ -38,6 +38,11 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float deathBlinkDuration = 1.5f; // seconds
     [SerializeField] private int deathBlinkCount = 6;         // toggles (on/off pairs -> ~1.5s total with step duration)
 
+    [Header("Visual Tint By Health")]
+    [SerializeField] private Color lowHealthTint = new Color(0.85f, 0.85f, 0.85f, 1f); // 初始浅灰
+    [SerializeField] private Color highHealthTint = new Color(0.35f, 0.35f, 0.35f, 1f); // 高生命深灰
+    [SerializeField] private float referenceHealthForMaxDark = 50f; // 当maxHealth达到该值趋近深色
+
     private BoxCollider2D enemyCol;
     private Rigidbody2D rb2d;                  // Rigidbody2D
     private SpriteRenderer spriteRenderer;     // Main sprite
@@ -101,6 +106,7 @@ public class Enemy : MonoBehaviour
         IsTargetable = true;
         SetupHealthBar();
         if (enableShadow) SetupShadow(); else CleanupShadow();
+        ApplyTintByMaxHealth();
     }
 
     void Update()
@@ -215,6 +221,29 @@ public class Enemy : MonoBehaviour
         currentHealth = Mathf.Min(maxHealth, currentHealth + Mathf.Abs(amount));
         UpdateHealthBar();
     }
+
+    // Public API for spawn-time scaling
+    public void ApplyHealthMultiplier(float multiplier)
+    {
+        float m = Mathf.Max(0.01f, multiplier);
+        float baseMax = Mathf.Max(1f, maxHealth);
+        maxHealth = baseMax * m;
+        currentHealth = maxHealth;
+        UpdateHealthBar();
+        ApplyTintByMaxHealth();
+    }
+
+    private void ApplyTintByMaxHealth()
+    {
+        if (spriteRenderer == null) return;
+        float denom = Mathf.Max(1f, referenceHealthForMaxDark);
+        float t = Mathf.Clamp01(maxHealth / denom);
+        Color tint = Color.Lerp(lowHealthTint, highHealthTint, t);
+        tint.a = spriteRenderer.color.a; // 保持原alpha
+        spriteRenderer.color = tint;
+    }
+
+    // 动态排序改由场景中挂载的 DynamicSorting 组件负责
 
     private void SetupHealthBar()
     {

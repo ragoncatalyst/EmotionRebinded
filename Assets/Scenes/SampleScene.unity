@@ -941,7 +941,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 110069233}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -969,11 +969,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   chargeKey: 102
-  knob: {fileID: 625209511}
+  bg: {fileID: 1655809908}
+  handle: {fileID: 625209511}
   rotationSpeed: 240
-  resetRotationOnRelease: 1
+  handleEdgePadding: 4
+  handleSmoothing: 20
   maxChargeTime: 2
-  optionalFill: {fileID: 0}
+  optionalFill: {fileID: 1144254115}
   chargeCurve:
     serializedVersion: 2
     m_Curve:
@@ -998,11 +1000,16 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  skillId: 06
-  player: {fileID: 0}
-  executeSkillOnRelease: 1
+  requiredRotationsToFull: 10
+  skillId: 07
+  player: {fileID: 1147152796}
+  executeSkillOnRelease: 0
+  simulateAxisByHoldKey: 1
+  ultimateKey: 107
+  ultimateDamage: 20
+  ultimateAreaSize: {x: 30, y: 30}
   disableWhenUpgradePanelOpen: 1
-  upgradePanel: {fileID: 0}
+  upgradePanel: {fileID: 641831234}
   onRelease:
     m_PersistentCalls:
       m_Calls: []
@@ -1010,6 +1017,9 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   onCharging:
+    m_PersistentCalls:
+      m_Calls: []
+  onAxis:
     m_PersistentCalls:
       m_Calls: []
 --- !u!1 &116726703
@@ -1198,10 +1208,16 @@ MonoBehaviour:
   baseSortingOrder: 60
   sortingPrecision: 10
   updateEveryFrame: 1
+  useZDepthSorting: 0
+  depthPerUnit: 0.001
+  baseZ: 0
+  yOcclusionBias: 0
+  xTieBreaker: 0
   minSortingOrder: -30000
   maxSortingOrder: 32767
   sortingOffset: {x: 0, y: -0.5}
   showSortingPoint: 1
+  occlusionOffset: {x: 0, y: -0.5}
   objectType: 3
   enableDebugLogs: 0
 --- !u!114 &203499189
@@ -2968,6 +2984,12 @@ MonoBehaviour:
   autoWaveSpawn: 1
   waveIntervalSeconds: 30
   waveCount: 100
+  enableRamping: 1
+  minWaveCount: 3
+  maxWaveCount: 20
+  rampDurationSeconds: 300
+  healthMultiplierStart: 1
+  healthMultiplierMax: 3
   enableFarDespawn: 1
   despawnDistance: 60
   despawnCheckInterval: 3
@@ -3522,10 +3544,10 @@ RectTransform:
   - {fileID: 448744563}
   - {fileID: 468031205}
   - {fileID: 1079514580}
+  - {fileID: 110069234}
   - {fileID: 1491132300}
   - {fileID: 2107661699}
   - {fileID: 155575812}
-  - {fileID: 110069234}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -4102,10 +4124,16 @@ MonoBehaviour:
   baseSortingOrder: 60
   sortingPrecision: 10
   updateEveryFrame: 1
+  useZDepthSorting: 0
+  depthPerUnit: 0.001
+  baseZ: 0
+  yOcclusionBias: 0
+  xTieBreaker: 0
   minSortingOrder: -30000
   maxSortingOrder: 32767
   sortingOffset: {x: 0, y: -0.5}
   showSortingPoint: 1
+  occlusionOffset: {x: 0, y: -0.5}
   objectType: 3
   enableDebugLogs: 0
 --- !u!1001 &1111149756
@@ -4430,7 +4458,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.759434, g: 1, b: 0.7606342, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -4438,13 +4466,13 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 0
+  m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
   m_FillClockwise: 1
-  m_FillOrigin: 0
+  m_FillOrigin: 2
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
 --- !u!222 &1144254116
@@ -4455,6 +4483,17 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1144254113}
   m_CullTransparentMesh: 1
+--- !u!114 &1147152796 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 921531718796573586, guid: db9dbadd2febb461fbbfdd00fb8482cd, type: 3}
+  m_PrefabInstance: {fileID: 7605090874271859504}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afe28239e5fa445feac48e5cae0f5213, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1232677179
 GameObject:
   m_ObjectHideFlags: 0
@@ -6938,6 +6977,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 921531718796573586, guid: db9dbadd2febb461fbbfdd00fb8482cd, type: 3}
+      propertyPath: novaBlastPrefab
+      value: 
+      objectReference: {fileID: 6880365764667941097, guid: 284e327c5bb5e4b80bedffd624f11061, type: 3}
     - target: {fileID: 2787173888282795163, guid: db9dbadd2febb461fbbfdd00fb8482cd, type: 3}
       propertyPath: m_Name
       value: Player
